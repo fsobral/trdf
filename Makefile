@@ -13,6 +13,7 @@ ifndef USERMAIN
 endif
 
 # Compiler options
+
 FC  = gfortran
 FCC = "-xf77-cpp-input"
 
@@ -35,7 +36,7 @@ trdf:
 	$(MAKE) -C $(SRC) all install
 	$(MAKE) -C $(SOL) install
 	$(MAKE) -C $(TES) $(USERMAIN)
-	gfortran -L$(SOLVERLIB) -L$(LIB) $^ $(LOPTS) -ltrdf $(OBJ)/solver.o $(OBJ)/prob.o -o $(BIN)/$@
+	gfortran -L$(SOLVERLIB) -L$(LIB) $(OBJ)/solver.o $(OBJ)/prob.o $(LOPTS) -ltrdf -o $(BIN)/$@
 
 # User-defined C executable
 c_trdf: trdf_main.c libtrdf.a
