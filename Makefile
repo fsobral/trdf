@@ -36,11 +36,12 @@ trdf:
 	$(MAKE) -C $(SRC) all install
 	$(MAKE) -C $(SOL) install
 	$(MAKE) -C $(TES) $(USERMAIN)
-	gfortran -L$(SOLVERLIB) -L$(LIB) $(OBJ)/solver.o $(OBJ)/prob.o $(LOPTS) -ltrdf -o $(BIN)/$@
+	$(FC) -L$(SOLVERLIB) -L$(LIB) $(OBJ)/solver.o $(OBJ)/prob.o $(LOPTS) -ltrdf -o $(BIN)/$@
 
 # User-defined C executable
-c_trdf: trdf_main.c libtrdf.a
-	gcc $^ -L$(SOLVERLIB) $(LOPTS) -lgfortran -lm -o $@
+c_trdf: 
+	$(MAKE) -C $(TES) $(USERMAIN) EXT=.c
+	gcc -L$(SOLVERLIB) -L$(LIB) $(OBJ)/solver.o $(OBJ)/prob.o -ltrdf $(LOPTS) -lgfortran -lm -o $(BIN)/$@
 
 # Hock-Schittkowski test set executable
 hstests: $(SOLVER_INTERFACE).o hstests.o TRDF.o functions.o libhs.a

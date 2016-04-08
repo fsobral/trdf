@@ -1,10 +1,16 @@
+ifndef EXT
+   EXT=.f
+endif
+
+export EXT
+
 install:
 
 hs:
 	$(MAKE) -C hs all
 
 %:
-	$(MAKE) -C examples $@.o install
+	$(MAKE) -C examples $@.o install 
 
 clean:
 	rm -vf *~
