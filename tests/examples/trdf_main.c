@@ -1,0 +1,174 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+void c_calobjf(int n, double *x, double *f) {
+
+  // Problem HS37 from Hock-Schittkowski collection
+
+  *f = - x[0] * x[1] * x[2];
+
+  return;
+
+}
+
+void c_calcon(int n, double *x, int ind, double *c) {
+
+  // Problem HS37 from Hock-Schittkowski collection
+
+  if ( ind == 0 ) {
+
+    *c = - 72.0 + x[0] + 2.0 * x[1] + 2.0 * x[2];
+
+    return;
+
+  }
+
+  if ( ind == 1 ) {
+
+    *c = - x[0] - 2.0 * x[1] - 2.0 * x[2];
+
+    return;
+
+  }
+
+}
+
+void c_caljac(int n, double *x, int ind, int *jcvar, double *jcval,
+	    int *jcnnz, int lim, _Bool *lmem, int *flag) {
+
+  // Problem HS37 from Hock-Schittkowski collection
+
+  *flag = 0;
+
+  *lmem =  0;
+
+  if ( ind == 0 ) {
+
+    *jcnnz = 3;
+    jcvar[0] = 0;
+    jcval[0] = 1.0;
+    jcvar[1] = 1;
+    jcval[1] = 2.0;
+    jcvar[2] = 2;
+    jcval[2] = 2.0;
+
+  } else if ( ind == 1 ) {
+
+    *jcnnz = 3;
+    jcvar[0] = 0;
+    jcval[0] = - 1.0;
+    jcvar[1] = 1;
+    jcval[1] = - 2.0;
+    jcvar[2] = 2;
+    jcval[2] = - 2.0;
+
+  } else {
+    
+    *flag = -1;
+
+  }
+
+  return;
+
+}
+
+void c_calhc(int n, double *x, int ind, int *hcrow, int *hccol, double *hcval,
+	   int *hcnnz, int lim, _Bool *lmem, int *flag) {
+  
+
+  // Problem HS37 from Hock-Schittkowski collection
+
+   *flag = 0;
+
+   *lmem = 0;
+
+   *hcnnz = 0;
+
+   return;
+
+}
+
+
+int main()
+{
+
+  int i, fcnt, m, maxfevals, n, npt, numProb, numProbs, result;
+
+  double f, feas, rbeg, rend, xeps, *x, *l, *u;
+
+  _Bool *equatn, *linear, ccoded[2];
+
+  // Problem HS37 from Hock-Schittkowski collection
+
+  // Number of variables
+  n = 3;
+
+  // Number of points
+  npt = 2 * n + 1;
+
+  // Allocates initial point and bounds
+
+  x = (double*) malloc(n * sizeof(double));
+  l = (double*) malloc(n * sizeof(double));
+  u = (double*) malloc(n * sizeof(double));
+  
+  if ( x == NULL || l == NULL || u == NULL ) {
+
+    printf("\nMemory allocation error.\n");
+
+    return 1;
+
+  }
+
+  for (i = 0; i < n; i++) {
+
+    l[i] = 0.0;
+    u[i] = 42.0;
+    x[i] = 10.0;
+
+  }
+
+  // Number of constraints
+  m = 2;
+
+  equatn = (_Bool*) malloc(m * sizeof(_Bool));
+  linear = (_Bool*) malloc(m * sizeof(_Bool));
+
+  if ( equatn == NULL || linear == NULL ) {
+
+    printf("\nMemory allocation error.\n");
+
+    return 1;
+
+  }
+
+  // Type of constraints
+
+  for (i = 0; i < m; i++) equatn[i] = 0;
+  for (i = 0; i < m; i++) linear[i] = 1;
+
+  // Coded subroutines for constraints' derivatives
+
+  ccoded[0] = 1;
+  ccoded[1] = 0;
+
+  // Maximum number of function evaluations
+  maxfevals = 10000;
+
+  rbeg = 1.0e-1;
+  rend = 1.0e-4;
+  xeps = 1.0e-8;
+
+  // Calls the solver
+  trdf(n,npt,x,l,u,m,equatn,linear,ccoded,maxfevals,rbeg,rend,xeps,
+       &f,&feas,&fcnt);
+
+  // Frees memory
+  free(x);
+  free(l);
+  free(u);
+  free(equatn);
+  free(linear);
+
+}

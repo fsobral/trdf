@@ -1,0 +1,10 @@
+       integer HCNNZMAX, JCNNZMAX,NMAX,MMAX, MAXXEL,INN
+       logical OUTPUT
+
+       parameter(NMAX = 1000)
+       parameter(MMAX = 1000)
+       parameter(JCNNZMAX = NMAX * MMAX)
+       parameter(HCNNZMAX = NMAX ** 2 * (1 + MMAX))
+       parameter(MAXXEL = 3)
+       parameter(INN = 1000)
+       parameter(OUTPUT = .true.)
