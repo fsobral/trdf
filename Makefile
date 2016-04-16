@@ -8,12 +8,13 @@ SOL = $(SRC)/solvers
 BIN = $(TRDF_HOME)/bin
 OBJ = $(TRDF_HOME)/objects
 
-ifndef USERMAIN
-   USERMAIN = trdf_main
+ifndef PROBLEM
+   PROBLEM = tests/examples/trdf_main.f
 endif
 
 # Compiler options
 
+CC  = gcc
 FC  = gfortran
 FCC = "-xf77-cpp-input"
 
@@ -21,27 +22,33 @@ FCC = "-xf77-cpp-input"
 
 SOLVERLIB = /opt/tango/algencan-3.0.0/lib
 SOLVER_INTERFACE = algencan_solver
-SLOPTS = -lalgencan
+SLOPTS = -lalgencan -ltrdf
 
 # Linking options
 
 LOPTS = $(SLOPTS)
 
-# Executable options
-
 export
 
-# User-defined executable
-trdf:
+all: lib solver
+
+# Generate the main TRDF library
+lib:
 	$(MAKE) -C $(SRC) all install
+
+# Generate the solver interface object
+solver:
 	$(MAKE) -C $(SOL) install
-	$(MAKE) -C $(TES) $(USERMAIN)
-	$(FC) -L$(SOLVERLIB) -L$(LIB) $(OBJ)/solver.o $(OBJ)/prob.o $(LOPTS) -ltrdf -o $(BIN)/$@
+
+# User-defined executable
+trdf: all
+	$(FC) -L$(SOLVERLIB) -L$(LIB) $(OBJ)/solver.o \
+	$(FCC) -I$(SRC) $(PROBLEM) $(LOPTS) -o $(BIN)/$@
 
 # User-defined C executable
-c_trdf: 
-	$(MAKE) -C $(TES) $(USERMAIN) EXT=.c
-	gcc -L$(SOLVERLIB) -L$(LIB) $(OBJ)/solver.o $(OBJ)/prob.o -ltrdf $(LOPTS) -lgfortran -lm -o $(BIN)/$@
+c_trdf: all
+	$(MAKE) -C $(TES) $(USERMAIN) USERCOMPILER=$(CC)
+	$(CC) -L$(SOLVERLIB) -L$(LIB) $(OBJ)/solver.o $(OBJ)/prob.o -ltrdf $(LOPTS) -lgfortran -lm -o $(BIN)/$@
 
 # Hock-Schittkowski test set executable
 hstests: $(SOLVER_INTERFACE).o hstests.o TRDF.o functions.o libhs.a
