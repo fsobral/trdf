@@ -877,3 +877,46 @@ C     ******************************************************************
       return
       end subroutine mmv
 
+C     ******************************************************************
+C     ******************************************************************
+
+      subroutine improvePoisedness(n,L,delta,threshold,out,ynew)
+
+      implicit none
+
+C     ARRAY ARGUMENTS
+      double precision L(n),ynew(n)
+
+C     SCALAR ARGUMENTS
+      integer n,out
+      double precision delta
+
+C     LOCAL ARRAYS
+      double precision tau(n),work(n)
+      integer i,j,info,lwork
+
+C     LAPACK's LQ factorization
+
+      lwork = 2 * n
+
+C     TODO: Use DGEQP3 - pivoting
+      call dgelqf(n,n,L,n,tau,work,lwork,info)
+
+      do i = 1,n
+         if ( abs(A(i,i)) .lt. threshold ) then
+            out = i
+            GOTO 900
+         end if
+      end do
+
+C     Calculate ynew as the 'out'-th row of Q
+
+ 900  do i = 1,n
+         ynew(i) = 0.0D0
+      end do
+
+      ynew(out) = 1.0D0 * delta
+
+      call dormlq('L','T',n,1,n,L,n,tau,ynew,work,lwork,info)
+
+      end
