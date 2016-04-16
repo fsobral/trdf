@@ -51,8 +51,12 @@ c_trdf: all
 	$(PROBLEM) $(LOPTS) -lgfortran -lm -o $(BIN)/$@
 
 # Hock-Schittkowski test set executable
-hstests: $(SOLVER_INTERFACE).o hstests.o TRDF.o functions.o libhs.a
-	gfortran -L$(SOLVERLIB) $^  $(LOPTS) -o $@ 
+hstests: all
+	$(MAKE) -C $(TES) hs
+
+	$(FC) -L$(SOLVERLIB) -L$(LIB) $(OBJ)/solver.o \
+	$(FCC) -I$(SRC) tests/hs/hstests.f -lhs $(LOPTS) \
+	-o $(BIN)/$@ 
 
 clean:
 	rm -vf $(LIB)/* $(BIN)/* $(OBJ)/*
