@@ -104,9 +104,6 @@ int main()
   // Number of variables
   n = 3;
 
-  // Number of points
-  npt = 2 * n + 1;
-
   // Allocates initial point and bounds
 
   x = (double*) malloc(n * sizeof(double));
@@ -153,16 +150,9 @@ int main()
   ccoded[0] = 1;
   ccoded[1] = 0;
 
-  // Maximum number of function evaluations
-  maxfevals = 10000;
-
-  rbeg = 1.0e-1;
-  rend = 1.0e-4;
-  xeps = 1.0e-8;
 
   // Calls the solver
-  trdf(n,npt,x,l,u,m,equatn,linear,ccoded,maxfevals,rbeg,rend,xeps,
-       &f,&feas,&fcnt);
+  easytrdf(n,x,l,u,m,equatn,linear,ccoded,&f,&feas,&fcnt);
 
   // Frees memory
   free(x);
