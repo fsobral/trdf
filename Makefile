@@ -47,8 +47,8 @@ trdf: all
 
 # User-defined C executable
 c_trdf: all
-	$(MAKE) -C $(TES) $(USERMAIN) USERCOMPILER=$(CC)
-	$(CC) -L$(SOLVERLIB) -L$(LIB) $(OBJ)/solver.o $(OBJ)/prob.o -ltrdf $(LOPTS) -lgfortran -lm -o $(BIN)/$@
+	$(CC) -L$(SOLVERLIB) -L$(LIB) $(OBJ)/solver.o \
+	$(PROBLEM) $(LOPTS) -lgfortran -lm -o $(BIN)/$@
 
 # Hock-Schittkowski test set executable
 hstests: $(SOLVER_INTERFACE).o hstests.o TRDF.o functions.o libhs.a
@@ -57,3 +57,5 @@ hstests: $(SOLVER_INTERFACE).o hstests.o TRDF.o functions.o libhs.a
 clean:
 	rm -vf $(LIB)/* $(BIN)/* $(OBJ)/*
 	$(foreach i,$(SRC) $(TES),$(MAKE) -C $(i) clean;)
+
+.PHONY: lib all clean
