@@ -1,3 +1,30 @@
+SUBROUTINE EASYCTRDF(N,X,XL,XU,M,EQUATN,LINEAR,CCODED,F,FEAS,FCNT) &
+     BIND(C, name="easytrdf")
+  
+  use iso_c_binding, only : c_bool, c_double, c_int
+
+  implicit none
+  
+  ! SCALAR ARGUMENTS
+  integer(kind=c_int), value :: m,n
+  integer(kind=c_int)        :: fcnt
+  real(kind=c_double)        :: f,feas
+  
+  ! ARRAY ARGUMENTS
+  real(kind=c_double) :: X(N),XL(N),XU(N)
+  logical(kind=c_bool) :: ccoded(2),equatn(m),linear(m)
+  
+  ! LOCAL ARRAYS
+  logical :: ccoded_(2),equatn_(m),linear_(m)
+  
+  ccoded_(1:2) = logical( ccoded(1:2) )
+  equatn_(1:m) = logical( equatn(1:m) )
+  linear_(1:m) = logical( linear(1:m) )
+
+  CALL EASYTRDF(N,X,XL,XU,M,EQUATN_,LINEAR_,CCODED_,F,FEAS,FCNT)
+  
+END SUBROUTINE EASYCTRDF
+
 SUBROUTINE CTRDF(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,MAXFCNT,RBEG, &
      REND,XEPS,F,FEAS,FCNT) BIND(C, name="trdf")
   
