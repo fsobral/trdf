@@ -1,55 +1,85 @@
 module trdf
 
+  implicit none
+
+  ! PARAMETERS
+
+  integer, parameter :: NMAX = 1000
+  integer, parameter :: MMAX = 1000
+  integer, parameter :: JCNNZMAX = NMAX * MMAX
+  integer, parameter :: HCNNZMAX = NMAX ** 2 * (1 + MMAX)
+  integer, parameter :: MAXXEL = 3
+  integer, parameter :: INN = 1000
+  logical, parameter :: OUTPUT = .true.
+
+  ! COMMON SCALARS
+
+  integer :: IC,MAXIC
+  real(8) :: VQUAD,VQUAD_A
+
+  ! COMMON ARRAYS
+
+  real(8) :: XBASE_A(INN), GOPT_A(INN), HQ_A(INN ** 2)
+
+  ! COMMON SUBROUTINES
+
+  pointer :: evalf,evalc,evaljac,evalhc
+
+  ! INTERFACES
+
+  interface
+     subroutine evalf(n,x,f,flag)
+       ! SCALAR ARGUMENTS
+       integer :: flag,n
+       real(8) :: f
+       ! ARRAY ARGUMENTS
+       real(8) :: x(n)
+
+       intent(in ) :: n,x
+       intent(out) :: f,flag
+     end subroutine evalf
+
+     subroutine evalc(n,x,ind,c,flag)
+       ! SCALAR ARGUMENTS
+       integer :: flag,ind,n
+       real(8) :: c
+       ! ARRAY ARGUMENTS
+       real(8) :: x(n)
+
+       intent(in ) :: ind,n,x
+       intent(out) :: c,flag
+     end subroutine evalc
+
+     subroutine evaljac(n,x,ind,jcvar,jcval,jcnnz,lim,lmem,flag)
+       ! SCALAR ARGUMENTS
+       integer :: flag,ind,jcnnz,lim,n
+       logical :: lmem
+       ! ARRAY ARGUMENTS
+       integer :: jcvar(lim)
+       real(8) :: jcval(lim),x(n)
+
+       intent(in ) :: ind,lim,n,x
+       intent(out) :: flag,jcnnz,jcval,jcvar,lmem
+     end subroutine evaljac
+
+      subroutine evalhc(n,x,ind,hcrow,hccol,hcval,hcnnz,lim,lmem,flag)
+        ! SCALAR ARGUMENTS
+        logical :: lmem
+        integer :: flag,hcnnz,ind,lim,n
+        ! ARRAY ARGUMENTS
+        integer :: hccol(lim),hcrow(lim)
+        double precision :: hcval(lim),x(n)
+
+        intent(in ) :: ind,lim,n,x
+        intent(out) :: flag,hccol,hcrow,hcval,hcnnz,lmem
+      end subroutine evalhc
+
+  end interface
+
 contains
 
-  SUBROUTINE EASYTRDF(N,X,XL,XU,M,EQUATN,LINEAR,CCODED,F,FEAS,
-    +                    FCNT)
-
-    IMPLICIT NONE
-
-    ! This subroutine calls the true TRDF subroutine using default
-    ! configuration parameters
-
-    ! SCALAR ARGUMENTS
-    integer M,N,FCNT
-    double precision F,FEAS
-
-    ! ARRAY ARGUMENTS
-    double precision  X(N),XL(N),XU(N)
-    logical CCODED(2),EQUATN(M),LINEAR(M)
-
-    ! LOCAL SCALARS
-    integer MAXFCNT,NPT
-    double precision RBEG,REND,XEPS
-
-    ! NUMBER OF INTERPOLATION POITNS. 
-
-    if ( N .le. 2 ) then
-       NPT = 2 * N + 1
-    else
-       NPT = 2 * N + 3
-    end if
-
-    ! SETS DEFAULT PARAMETERS
-
-    MAXFCNT = 100000
-
-    RBEG = 1.0D-1
-    REND = 1.0D-4
-    XEPS = 1.0D-8
-
-    ! CALLS THE TRUE SUBROUTINE
-
-    CALL TRDF(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,MAXFCNT,RBEG,REND,
-    +          XEPS,F,FEAS,FCNT)
-
-  END SUBROUTINE EASYTRDF
-
-  !     ******************************************************************
-  !     ******************************************************************
-
-  SUBROUTINE TRDF(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,MAXFCNT,RBEG,
-    +                REND,XEPS,F,FEAS,FCNT)     
+  SUBROUTINE TRDFSUB(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,EVALF_,EVALC_, &
+       EVALJAC_,EVALHC_,MAXFCNT,RBEG,REND,XEPS,F,FEAS,FCNT)     
 
     ! This subroutine is the implementation of the Derivative-free
     ! Trust-region algorithm for constrained optimization described in
@@ -57,72 +87,101 @@ contains
     !     P. D. Conejo, E. W. Karas, L. G. Pedroso, "A trust-region
     !     derivative-free algorithm for constrained optimization".
     !     Optimization Methods & Software, to appear, 2015.
-    ! For more information on configurations, recommended values of the
-    ! parameters and examples, please read the documentation provided
-    ! with the method.
+    !
+    ! For more information on configurations, recommended values of
+    ! the parameters and examples, please read the documentation
+    ! provided with the method.
     !
     !     The INPUT parameters are
     ! N - dimension of the problem
+    !
     ! NPT - number of points used in the quadratic interpolation
+    !
     ! X(N) - inital point
+    !
     ! XL(N) - lower bounds on the variables
+    !
     ! XU(N) - upper bounds on the variables
+    !
     ! M - number of constraints
+    !
     ! EQUATN(M) - a logical vector such that EQUATN(i) = .true. if and
-    !                 only if constraint 'i' is an equality constraint
+    !             only if constraint 'i' is an equality constraint
+    !
     ! LINEAR(M) - a logical vector such that LINEAR(i) = .true. if and
-    ! only if constraint 'i' is a linear constraint
+    !             only if constraint 'i' is a linear constraint
+    !
     ! CCODED(2) - a logical vector indicating whether or not the
-    !                 Jacobian (CCODED(1)) and the Hessian (CCODED(2))
-    !                 of the constraints are provided by the user
+    !             Jacobian (CCODED(1)) and the Hessian (CCODED(2)) of
+    !             the constraints are provided by the user
+    !
     ! MAXFCNT - maximum number of function evaluations
+    !
     ! RBEG - initial value for the trust region radius and interpolation
+    !
     ! REND - smallest trust-region radius for declaring convergence of
-    ! the method
+    !        the method
+    !
     ! XEPS - feasibility/optimality tolerance for solving the subproblems
+    !
+    !
     ! The OUTPUT parameters are
+    !
     ! X(N) - the final point
+    !
     ! F - objective function value at the final point
+    !
     ! FEAS - sup-norm of the infeasibility at the final point
+    !
     ! FCNT - number of function evaluations
 
     IMPLICIT NONE
 
-#include "tr_params.par"
+!#include "tr_params.par"
 
     ! SCALAR ARGUMENTS
-    integer m,maxfcnt,N,NPT,FCNT
-    double precision F,FEAS,RBEG,REND,XEPS
+    integer :: m,maxfcnt,N,NPT,FCNT
+    double precision :: F,FEAS,RBEG,REND,XEPS
 
     ! ARRAY ARGUMENTS
-    DOUBLE PRECISION  X(N),XL(N),XU(N)
-    logical ccoded(2),equatn(m),linear(m)
+    DOUBLE PRECISION :: X(N),XL(N),XU(N)
+    logical :: ccoded(2),equatn(m),linear(m)
 
-    ! COMMON SCALARS
-    integer IC,MAXIC
-    double precision VQUAD,VQUAD_A
+    ! EXTERNAL SUBROUTINES
+    external :: evalf_,evalc_,evaljac_,evalhc_
 
-    ! COMMON ARRAYS
-    DOUBLE PRECISION XBASE_A(INN), GOPT_A(INN), HQ_A(INN**2)
+    intent(in   ) :: m,maxfcnt,n,npt,rbeg,rend,xeps,xl,xu,ccoded, &
+                    equatn,linear
+    intent(out  ) :: f,feas,fcnt
+    intent(inout) :: x
 
-    COMMON /VQUADA/ VQUAD_A, VQUAD
-    COMMON /XBASEA/ XBASE_A 
-    COMMON / NOMETESTE /  GOPT_A, HQ_A    
-    COMMON /CONTA1/ IC, MAXIC 
+!!$    ! COMMON SCALARS
+!!$    integer IC,MAXIC
+!!$    double precision VQUAD,VQUAD_A
+!!$
+!!$    ! COMMON ARRAYS
+!!$    DOUBLE PRECISION XBASE_A(INN), GOPT_A(INN), HQ_A(INN**2)
+!!$
+!!$    COMMON /VQUADA/ VQUAD_A, VQUAD
+!!$    COMMON /XBASEA/ XBASE_A 
+!!$    COMMON / NOMETESTE /  GOPT_A, HQ_A    
+!!$    COMMON /CONTA1/ IC, MAXIC 
 
     ! LOCAL ARRAYS
-    DOUBLE PRECISION FF(NPT),D(INN),Y(NPT,N),Q(1+N+N*(N+1)/2),
-1   H(NPT+N+1,NPT+N+1), 
-1   XNOVO(INN), SL(INN),
-1   SU(INN), VETOR1(NPT+N+1) 
+    DOUBLE PRECISION :: FF(NPT),D(INN),Y(NPT,N),Q(1+N+N*(N+1)/2), &
+         H(NPT+N+1,NPT+N+1),XNOVO(INN),SL(INN),SU(INN), VETOR1(NPT+N+1) 
 
     ! LOCAL SCALARS
-    integer i,it,j,k,kn,flag
-    double precision alfa,beta,c,cnorm,delta,distsq,dsq,fopt,gama,
-    +     mindelta,rho,rhobeg,rhoend,sigm,sum,tau
-    double precision tempofinal,tempoinicial
+    integer :: i,it,j,k,kn,flag
+    double precision :: alfa,beta,c,cnorm,delta,distsq,dsq,fopt,gama, &
+         mindelta,rho,rhobeg,rhoend,sigm,sum,tau,tempofinal,tempoinicial
 
     IF ( OUTPUT ) WRITE(*,3000)
+
+    evalf   => evalf_
+    evalc   => evalc_
+    evaljac => evaljac_
+    evalhc  => evalhc_
 
     F = 1.0D300
     IC = 0
@@ -137,8 +196,7 @@ contains
     !     Feasibility phase - Phase 0
     !     ---------------------------
 
-    CALL SOLVER(N, XL, XU, X, M, EQUATN, LINEAR, CCODED, .true.,
-    +            XEPS, CNORM, FLAG)
+    CALL SOLVER(N, XL, XU, X, M, EQUATN, LINEAR, CCODED, .true., XEPS, CNORM, FLAG)
 
     IF ( FLAG .NE. 0 ) GOTO 31
     IF (OUTPUT) WRITE(*,1000) CNORM,X
@@ -165,14 +223,14 @@ contains
 
     CALL  PRIMEIROMODELO1 (N,X,Q,H, NPT,RHO,Y,FF,FLAG) 
 
-    IF ( OUTPUT ) WRITE(*,1002) RHO,DELTA,FF(1),IC,MIN(N,MAXXEL),
-    +              (X(I), I=1,MIN(N,MAXXEL))
+    IF ( OUTPUT ) WRITE(*,1002) RHO,DELTA,FF(1),IC,MIN(N,MAXXEL), &
+                  (X(I), I=1,MIN(N,MAXXEL))
     IF ( FLAG .NE. 0 ) GOTO 31
 
     FOPT = FF(1)         
 
-11  CALL   SUBPROBLEMA(N,NPT,Q,DELTA,D, X, XL, XU, DSQ,
-    +                   M, EQUATN, LINEAR, CCODED, XEPS, FLAG) 
+11  CALL   SUBPROBLEMA(N,NPT,Q,DELTA,D, X, XL, XU, DSQ, &
+                       M, EQUATN, LINEAR, CCODED, XEPS, FLAG) 
 
     IF ( OUTPUT ) WRITE(*,1003) RHO,DELTA,Q(1),FOPT,IC
     IF ( FLAG .NE. 0 ) GOTO 31
@@ -287,8 +345,8 @@ contains
 
     IF ( OUTPUT ) THEN
        call cpu_time(tempofinal)
-       write(*,2000) F,FEAS,RHO,DELTA,IC,(tempofinal - tempoinicial),
-       +                 MIN(N,MAXXEL),(X(I), I=1,MIN(N,MAXXEL))
+       write(*,2000) F,FEAS,RHO,DELTA,IC,(tempofinal - tempoinicial), &
+                     MIN(N,MAXXEL),(X(I), I=1,MIN(N,MAXXEL))
        ! print '("Time = ",1PD23.8," seconds.")',tempofinal-tempoinicial
        ! PRINT*, "NUMBER OF CALL OBJECTIVE FUNCTION =", IC 
        ! DO I=1, N
@@ -299,47 +357,47 @@ contains
 
     ! FORMATS
 
-1000 FORMAT(/,'PHASE 0',/,7('-'),/,/,'FEASIBILITY =',36X,D23.8,/,
-    +       'NEW POINT',/,3(1X,D23.8))
+1000 FORMAT(/,'PHASE 0',/,7('-'),/,/,'FEASIBILITY =',36X,D23.8,/, &
+              'NEW POINT',/,3(1X,D23.8))
 1001 FORMAT(/,'PHASE 1',/,7('-'),/)
-1002 FORMAT(/,'(RE)BUILDING MODEL from scratch.',/,
-    +       5X,'RHO =',50X,D12.5,/,
-    +       5X,'Delta =',48X,D12.5,/,
-    +       5X,'Objective function =',24X,D23.8,/,
-    +       5X,'Function evaluations =',35X,I10,/,
-    +       5X,'Current model center (first ',I3,' elements)',/,6X,
-    +       3(1X,D21.8))
-1003 FORMAT(/,'SOLVED TR SUBPROBLEM.',/,
-    +       5X,'RHO =',50X,D12.5,/,
-    +       5X,'Delta =',48X,D12.5,/,
-    +       5X,'Model value =',31X,D23.8,/,
-    +       5X,'Objective function =',24X,D23.8,/,
-    +       5X,'Function evaluations =',35X,I10)
+1002 FORMAT(/,'(RE)BUILDING MODEL from scratch.',/, &
+            5X,'RHO =',50X,D12.5,/,                 &
+            5X,'Delta =',48X,D12.5,/,               &
+            5X,'Objective function =',24X,D23.8,/,  &
+            5X,'Function evaluations =',35X,I10,/,  &
+            5X,'Current model center (first ',I3,' elements)',/,6X, &
+            3(1X,D21.8))
+1003 FORMAT(/,'SOLVED TR SUBPROBLEM.',/,           &
+            5X,'RHO =',50X,D12.5,/,                &
+            5X,'Delta =',48X,D12.5,/,              &
+            5X,'Model value =',31X,D23.8,/,        &
+            5X,'Objective function =',24X,D23.8,/, &
+            5X,'Function evaluations =',35X,I10)
 1004 FORMAT(5X,'Objective function =',24X,D23.8)
 1005 FORMAT(/,'REMOVING sampling point',1X,I4,'.')
 
 1020 FORMAT(/,'Solution was found!',/)
 1021 FORMAT(/,'Flag -1: Error while evaluating functions.',/)
 1022 FORMAT(/,'Flag 2: Error in the internal solver.',/)
-1023 FORMAT(/,'Flag 3: Reached the maximum of',1X,I10,1X,
-    +     'function evaluations.',/)
+1023 FORMAT(/,'Flag 3: Reached the maximum of',1X,I10,1X, &
+          'function evaluations.',/)
 
-2000 FORMAT(/,'Final Iteration',/,15('-'),2/,
-    +       'Objective function =',29X,D23.8,/,
-    +       'Feasibility =',36X,D23.8,/,
-    +       'RHO =',55X,D12.5,/,
-    +       'Delta =',53X,D12.5,/,
-    +       'Function evaluations =',40X,I10,/,
-    +       'CPU time =',30X,1PD23.8,1X,'seconds.',/,
-    +       'Solution (first ',I3,' elements)',/,3(1X,D23.8))
+2000 FORMAT(/,'Final Iteration',/,15('-'),2/,          &
+            'Objective function =',29X,D23.8,/,        &
+            'Feasibility =',36X,D23.8,/,               &
+            'RHO =',55X,D12.5,/,                       &
+            'Delta =',53X,D12.5,/,                     &
+            'Function evaluations =',40X,I10,/,        &
+            'CPU time =',30X,1PD23.8,1X,'seconds.',/,  &
+            'Solution (first ',I3,' elements)',/,3(1X,D23.8))
 
-3000 FORMAT(/,'Welcome to TRDF Algorithm!',/,
-    +     'This algorithm was based on paper',/,
-    +     'P.D. Conejo, E.W. Karas, and L.G. Pedroso',/,
-    +     '"A trust-region derivative-free algorithm for',/,
-    +     'constrained problems", to appear in Optimization',/,
-    +     'Methods & Software.',/)
-  END SUBROUTINE TRDF
+3000 FORMAT(/,'Welcome to TRDF Algorithm!',/,                   &
+          'This algorithm was based on paper',/,                &
+          'P.D. Conejo, E.W. Karas, and L.G. Pedroso',/,        &
+          '"A trust-region derivative-free algorithm for',/,    &
+          'constrained problems", to appear in Optimization',/, &
+          'Methods & Software.',/)
+  END SUBROUTINE TRDFSUB
 
   ! ******************************************************************
   ! ******************************************************************
@@ -347,16 +405,15 @@ contains
   ! ********************************  FIRST MODEL  *******************************
   SUBROUTINE  PRIMEIROMODELO1 (N,X,Q,H,NPT,DELTA,Y,FF,FLAG)
     IMPLICIT REAL*8 (A-H,O-Z)
-#include "tr_params.par"
-    integer flag
-    DIMENSION Q(*), FF(*), x(*)
-    DIMENSION GOPT_A(INN),HQ_A(INN**2),XBASE_A(INN)
-    dimension  E(N+1,NPT),OMEGA(NPT,NPT),Y(NPT,N),
-1   GAMA(N+1,N+1),Z(NPT,NPT-N-1), H(NPT+N+1,NPT+N+1),
-1   YY(N), HQ(n,n),  FFTEMP(npt)                        
-    INTEGER IP(npt), IQ(npt)
-    COMMON / NOMETESTE /  GOPT_A, HQ_A  
-    COMMON /XBASEA/ XBASE_A
+!#include "tr_params.par"
+    integer :: n,npt,flag
+    DIMENSION :: Q(*), FF(*), x(*)
+    DIMENSION :: GOPT_A(INN),HQ_A(INN**2),XBASE_A(INN)
+    dimension ::  E(N+1,NPT),OMEGA(NPT,NPT),Y(NPT,N),GAMA(N+1,N+1), &
+         Z(NPT,NPT-N-1),H(NPT+N+1,NPT+N+1),YY(N),HQ(n,n),FFTEMP(npt)
+    INTEGER :: IP(npt), IQ(npt)
+!!$    COMMON / NOMETESTE /  GOPT_A, HQ_A  
+!!$    COMMON /XBASEA/ XBASE_A
     ! NPT IS THE NUMBER INTERPOLATION POINTS.
     ! Y IS THE INTERPOLATION SET.
     ! FF KEEP IN VALUES OF F IN Y. 
@@ -364,6 +421,9 @@ contains
     ! H  IS THE INVERSE ASSOCIATED WITH SYSTEM.
     ! YY STORES EACH VECTOR OF Y. 
     ! HQ IS THE HESSIAN IN MATRIX FORMAT.  
+
+    ! LOCAL SCALARS
+    integer :: i,ii,j,k
 
     DO I=1, 1+N+N*(N+1)/2
        Q(I)=0.0D0
@@ -453,8 +513,8 @@ contains
 
        ! DEFINE OTHERS INPUTS OF HESSIAN FOR OVER 2N+1.     
        DO J=2*N+2, NPT
-          HQ(IP(J),IQ(J))=(1.0D0/(DELTA**2))*(FF(J)-FF(IP(J)+1)
-1         -FF(IQ(J)+1)+ FF(1))  
+          HQ(IP(J),IQ(J))=(1.0D0/(DELTA**2))*(FF(J)-FF(IP(J)+1) &
+                          -FF(IQ(J)+1)+ FF(1))  
           HQ(IQ(J),IP(J)) =  HQ(IP(J),IQ(J)) 
        END DO
     END IF
@@ -562,15 +622,25 @@ contains
 
   SUBROUTINE SIGMA(H,N,NPT,Y,X,VETOR1,SIGM,ALFA,BETA,TAU,IT,DELTA)
     IMPLICIT REAL*8 (A-H,O-Z)
-#include "tr_params.par"
-    DIMENSION X(*), VETOR1(*) 
-    DIMENSION   WW(NPT+N+1,1),AUXILIAR(4)           
-    DIMENSION H(NPT+N+1,NPT+N+1), Y(NPT,N), XBASE_A(INN)
-    COMMON /XBASEA/ XBASE_A
-    ! WW STORAGE THE VETOR1 IN W TO PRODUCE ALFA BETA TAU HOW IN DEFINITION.   
-    ! SIGMA = ALFA BETA + TAU**2. ALFA = ET^T H ET, NAMELY, HTT (T = IT)
-    ! IT  INDICATE THAT THE VETOR1 IN POSITION TWO (SECOND LINE OF Y) LEAVE OF Y
-    ! CHOOSE THE LARGEST SIGMA (AND THEREFORE IT) UNLESS DE CURRENT POINT (IT CURRENT)
+!#include "tr_params.par"
+
+    ! SCALAR ARGUMENTS
+    integer :: IT,N,NPT
+
+    ! ARRAY ARGUMENTS
+
+    DIMENSION :: X(*), VETOR1(*) 
+    DIMENSION :: WW(NPT+N+1,1),AUXILIAR(4)           
+    DIMENSION :: H(NPT+N+1,NPT+N+1), Y(NPT,N), XBASE_A(INN)
+!!$    COMMON /XBASEA/ XBASE_A
+    ! WW STORAGE THE VETOR1 IN W TO PRODUCE ALFA BETA TAU HOW IN
+    ! DEFINITION.  SIGMA = ALFA BETA + TAU**2. ALFA = ET^T H ET,
+    ! NAMELY, HTT (T = IT) IT INDICATE THAT THE VETOR1 IN POSITION TWO
+    ! (SECOND LINE OF Y) LEAVE OF Y CHOOSE THE LARGEST SIGMA (AND
+    ! THEREFORE IT) UNLESS DE CURRENT POINT (IT CURRENT)
+
+    ! LOCAL SCALARS
+    integer :: i,IAUXILIAR,ITT,j,k,kkk
 
     ITT=IT    ! STORAGE THE POSITION OF BEST ITERATING YET.          
     IT =1
@@ -650,12 +720,22 @@ contains
   ! **************** UPDAT THE INVERSE H ******************************
   SUBROUTINE INVERSAH(H, N, NPT,VETOR1,SIGM,IT,ALFA,BETA,TAU)
     IMPLICIT REAL*8 (A-H,O-Z)
-#include "tr_params.par"
-    DIMENSION VETOR1(*)
-    DIMENSION P1(NPT+N+1,NPT+N+1) ,H(NPT+N+1,NPT+N+1)
-    DIMENSION P2(NPT+N+1,NPT+N+1),P3(NPT+N+1,NPT+N+1)
+
+    ! SCALAR ARGUMENTS
+    integer :: IT,N,NPT
+
+    ! ARRAY ARGUMENTS
+
+!#include "tr_params.par"
+    DIMENSION :: VETOR1(*)
+    DIMENSION :: P1(NPT+N+1,NPT+N+1) ,H(NPT+N+1,NPT+N+1)
+    DIMENSION :: P2(NPT+N+1,NPT+N+1),P3(NPT+N+1,NPT+N+1)
     ! ALFA*(E-MM) * (E-MM)'- BETA* H * E * E'*H+TAU*H*E*(E-MM)'+ (E-MM)* E'* H
     ! MM = H*WW THAT IS STORED IN VETOR1 
+
+    ! LOCAL SCALARS
+    integer :: i,j
+
     VETOR1(IT) = VETOR1(IT)-1.0D0              
     DO I=1, N+NPT+1
        DO J=1, N+NPT+1
@@ -676,27 +756,29 @@ contains
   ! ******************************************************************
   ! ******************************************************************
 
-  SUBROUTINE  SUBPROBLEMA(N, NPT, Q, DELTA, D, X, XL, XU, DSQ,
-    +                         M, EQUATN, LINEAR, CCODED, XEPS, FLAG)
+  SUBROUTINE  SUBPROBLEMA(N, NPT, Q, DELTA, D, X, XL, XU, DSQ, M, &
+       EQUATN, LINEAR, CCODED, XEPS, FLAG)
     IMPLICIT REAL*8 (A-H,O-Z)
-#include "tr_params.par"
-    DIMENSION Q(*), X(*), XL(*),XU(*)
-    DOUBLE PRECISION XBASE_A(INN) 
-    DOUBLE PRECISION VQUAD_A, GRADD , VQUAD , XANTIGO(INN),L(N)
-    DOUBLE PRECISION H(NPT+N+1,NPT+N+1),XOPT_A(INN),D(INN),U(N) 
-    INTEGER N
+!#include "tr_params.par"
+    DIMENSION :: Q(*), X(*), XL(*),XU(*)
+!!$    DOUBLE PRECISION :: XBASE_A(INN) 
+!!$    DOUBLE PRECISION :: VQUAD_A, GRADD , VQUAD ,
 
     ! SCALAR ARGUMENTS
-    integer flag,m
+    integer :: flag,m,N,NPT
 
     ! ARRAY ARGUMENTS
-    logical ccoded(2),equatn(m), linear(m)
+    logical :: ccoded(2),equatn(m), linear(m)
 
-    COMMON /XBASEA/ XBASE_A           
-    COMMON /VQUADA/VQUAD_A, VQUAD   
+!!$    COMMON /XBASEA/ XBASE_A           
+!!$    COMMON /VQUADA/VQUAD_A, VQUAD   
 
     ! LOCAL SCALARS
-    double precision cnorm
+    integer :: i
+    double precision :: cnorm
+
+    ! LOCAL ARRAYS
+    real(8) ::  XANTIGO(INN),L(N),H(NPT+N+1,NPT+N+1),XOPT_A(INN),D(INN),U(N) 
 
     DO I = 1,N
        L(I)=  DMAX1(XL(I) - XBASE_A(I),X(I) - XBASE_A(I)-DELTA) 
@@ -715,8 +797,7 @@ contains
 
     VQUAD=  F + Q(1)                                 
 
-    CALL SOLVER(N, L, U, D, M, EQUATN, LINEAR, CCODED, .false.,
-    +               XEPS, CNORM, FLAG)
+    CALL SOLVER(N, L, U, D, M, EQUATN, LINEAR, CCODED, .false., XEPS, CNORM, FLAG)
 
     IF ( FLAG .NE. 0 ) RETURN
 
@@ -730,7 +811,7 @@ contains
        X(I)= D(I) +  XBASE_A(I)   
     END DO
 
-    CALL MEVALF(N,D,F,IFLAG)
+    CALL MEVALF(N,D,F,FLAG)
 
     IF ( FLAG .NE. 0 ) RETURN
 
@@ -751,15 +832,23 @@ contains
 
   SUBROUTINE  ATUALIZAQ(H, N, NPT, Q, DELTA, Y, X, F, IT)
     IMPLICIT REAL*8 (A-H,O-Z)
-#include "tr_params.par"
-    DOUBLE PRECISION Q(*), X(*) 
+!#include "tr_params.par"
 
-    DIMENSION H(NPT+N+1,NPT+N+1),Y(NPT,N),VETORAUX(INN),DD(N,N)
-    DOUBLE PRECISION  GOPT_A(INN), HQ_A(INN**2), XBASE_A(INN)  
-    DIMENSION QQ((N+1)*(N+2)/2),  TEMP(1+N+NPT)     
-    COMMON /VQUADA/ VQUAD_A, VQUAD 
-    COMMON /XBASEA/ XBASE_A  
-    COMMON / NOMETESTE /  GOPT_A, HQ_A    
+    ! SCALAR ARGUMENTS
+    integer :: IT,N,NPT
+
+    ! ARRAY ARGUMENTS
+    DOUBLE PRECISION :: Q(*), X(*) 
+
+    DIMENSION :: H(NPT+N+1,NPT+N+1),Y(NPT,N),VETORAUX(INN),DD(N,N)
+!!$    DOUBLE PRECISION :: GOPT_A(INN), HQ_A(INN**2), XBASE_A(INN)  
+    DIMENSION :: QQ((N+1)*(N+2)/2),  TEMP(1+N+NPT)     
+!!$    COMMON /VQUADA/ VQUAD_A, VQUAD 
+!!$    COMMON /XBASEA/ XBASE_A  
+!!$    COMMON / NOMETESTE /  GOPT_A, HQ_A    
+
+    ! LOCAL SCALARS
+    integer :: i,ii,j,jj,k
 
     DO I=1, 1+N+NPT
        TEMP(I) =  (F - VQUAD_A)* H(I, IT) ! IS LAMBDA 
@@ -818,11 +907,11 @@ contains
 
     implicit none
 
-#include "tr_params.par"
+!#include "tr_params.par"
 
     ! multiplica vetor por vetor
-    double precision v1(INN), v2(INN), soma, gradd
-    integer j, n
+    double precision :: v1(INN),v2(INN),soma,gradd
+    integer :: j,n
 
     soma=0
     do j=1 , n
@@ -839,14 +928,14 @@ contains
 
     implicit none
 
-#include "tr_params.par"
+!#include "tr_params.par"
 
     ! multiplica matriz simetrica (dada como vetor) por vetor
     ! estava com hs, e troquei para hss para nao atualizar hs desnec
 
-    double precision S(INN), HQ(INN ** 2), HSS(INN), v(INN)
+    double precision :: S(INN), HQ(INN ** 2), HSS(INN), v(INN)
 
-    integer n, i, j , IH
+    integer :: n, i, j , IH
     IH=0
     DO J=1,N
        HSS(J)= 0
