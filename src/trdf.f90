@@ -196,7 +196,9 @@ contains
     !     Feasibility phase - Phase 0
     !     ---------------------------
 
-    CALL SOLVER(N, XL, XU, X, M, EQUATN, LINEAR, CCODED, .true., XEPS, CNORM, FLAG)
+    CALL SOLVER(N, XL, XU, X, M, EQUATN, LINEAR, CCODED, &
+         mevalf, mevalg, mevalh, evalc, evaljac, evalhc, &
+         .true., XEPS, CNORM, FLAG)
 
     IF ( FLAG .NE. 0 ) GOTO 31
     IF (OUTPUT) WRITE(*,1000) CNORM,X
@@ -818,7 +820,9 @@ contains
 
     VQUAD=  F + Q(1)                                 
 
-    CALL SOLVER(N, L, U, D, M, EQUATN, LINEAR, CCODED, .false., XEPS, CNORM, FLAG)
+    CALL SOLVER(N, L, U, D, M, EQUATN, LINEAR, CCODED, &
+         mevalf, mevalg, mevalh, evalc, evaljac, evalhc, &
+         .false., XEPS, CNORM, FLAG)
 
     IF ( FLAG .NE. 0 ) RETURN
 

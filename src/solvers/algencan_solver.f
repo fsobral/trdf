@@ -1,6 +1,7 @@
 
       SUBROUTINE SOLVER(N, L, U, X, M, EQUATN, LINEAR, CCODED,
-     +                  PHASE0, EPS, CNORM, FLAG)
+     +     MEVALF, MEVALG, MEVALH, MEVALC, MEVALJAC, MEVALHC,
+     +     PHASE0, EPS, CNORM, FLAG)
 
 !     This subroutine calls the user-supplied nonlinear programming
 !     solver, in order to solve the trust-region subproblems. The user
