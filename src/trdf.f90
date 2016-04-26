@@ -68,7 +68,7 @@ module trdf
         integer :: flag,hcnnz,ind,lim,n
         ! ARRAY ARGUMENTS
         integer :: hccol(lim),hcrow(lim)
-        double precision :: hcval(lim),x(n)
+        real(8) :: hcval(lim),x(n)
 
         intent(in ) :: ind,lim,n,x
         intent(out) :: flag,hccol,hcrow,hcval,hcnnz,lmem
@@ -141,10 +141,10 @@ contains
 
     ! SCALAR ARGUMENTS
     integer :: m,maxfcnt,N,NPT,FCNT
-    double precision :: F,FEAS,RBEG,REND,XEPS
+    real(8) :: F,FEAS,RBEG,REND,XEPS
 
     ! ARRAY ARGUMENTS
-    DOUBLE PRECISION :: X(N),XL(N),XU(N)
+    REAL(8) :: X(N),XL(N),XU(N)
     logical :: ccoded(2),equatn(m),linear(m)
 
     ! EXTERNAL SUBROUTINES
@@ -157,10 +157,10 @@ contains
 
 !!$    ! COMMON SCALARS
 !!$    integer IC,MAXIC
-!!$    double precision VQUAD,VQUAD_A
+!!$    real(8) VQUAD,VQUAD_A
 !!$
 !!$    ! COMMON ARRAYS
-!!$    DOUBLE PRECISION XBASE_A(INN), GOPT_A(INN), HQ_A(INN**2)
+!!$    REAL(8) XBASE_A(INN), GOPT_A(INN), HQ_A(INN**2)
 !!$
 !!$    COMMON /VQUADA/ VQUAD_A, VQUAD
 !!$    COMMON /XBASEA/ XBASE_A 
@@ -168,12 +168,12 @@ contains
 !!$    COMMON /CONTA1/ IC, MAXIC 
 
     ! LOCAL ARRAYS
-    DOUBLE PRECISION :: FF(NPT),D(INN),Y(NPT,N),Q(1+N+N*(N+1)/2), &
+    REAL(8) :: FF(NPT),D(INN),Y(NPT,N),Q(1+N+N*(N+1)/2), &
          H(NPT+N+1,NPT+N+1),XNOVO(INN),SL(INN),SU(INN), VETOR1(NPT+N+1) 
 
     ! LOCAL SCALARS
     integer :: i,it,j,k,kn,flag
-    double precision :: alfa,beta,c,cnorm,delta,distsq,dsq,fopt,gama, &
+    real(8) :: alfa,beta,c,cnorm,delta,distsq,dsq,fopt,gama, &
          mindelta,rho,rhobeg,rhoend,sigm,sum,tau,tempofinal,tempoinicial
 
     IF ( OUTPUT ) WRITE(*,3000)
@@ -315,7 +315,6 @@ contains
     RHO = GAMA * RHO      
 
     GO TO 11    
-    ! ******************************************************************************
 
     ! OUTPUT DATA
 31  continue           
@@ -404,16 +403,20 @@ contains
 
   ! ********************************  FIRST MODEL  *******************************
   SUBROUTINE  PRIMEIROMODELO1 (N,X,Q,H,NPT,DELTA,Y,FF,FLAG)
-    IMPLICIT REAL*8 (A-H,O-Z)
+!!$    IMPLICIT REAL*8 (A-H,O-Z)
 !#include "tr_params.par"
+    
+    ! SCALAR ARGUMENTS
     integer :: n,npt,flag
-    DIMENSION :: Q(*), FF(*), x(*)
-    DIMENSION :: GOPT_A(INN),HQ_A(INN**2),XBASE_A(INN)
-    dimension ::  E(N+1,NPT),OMEGA(NPT,NPT),Y(NPT,N),GAMA(N+1,N+1), &
-         Z(NPT,NPT-N-1),H(NPT+N+1,NPT+N+1),YY(N),HQ(n,n),FFTEMP(npt)
-    INTEGER :: IP(npt), IQ(npt)
+    real(8) :: delta
+
+    ! ARRAY ARGUMENTS
+    real(8) :: Q(*), FF(*), x(n), H(NPT+N+1,NPT+N+1),YY(N)
+
+!!$    DIMENSION :: GOPT_A(INN),HQ_A(INN**2),XBASE_A(INN)
 !!$    COMMON / NOMETESTE /  GOPT_A, HQ_A  
 !!$    COMMON /XBASEA/ XBASE_A
+
     ! NPT IS THE NUMBER INTERPOLATION POINTS.
     ! Y IS THE INTERPOLATION SET.
     ! FF KEEP IN VALUES OF F IN Y. 
@@ -424,6 +427,12 @@ contains
 
     ! LOCAL SCALARS
     integer :: i,ii,j,k
+    real(8) :: ACUMULADOR
+
+    ! LOCAL ARRAYS
+    real(8) ::  E(N+1,NPT),OMEGA(NPT,NPT),Y(NPT,N),GAMA(N+1,N+1), &
+         Z(NPT,NPT-N-1),HQ(n,n),FFTEMP(npt)
+    INTEGER :: IP(npt), IQ(npt)
 
     DO I=1, 1+N+N*(N+1)/2
        Q(I)=0.0D0
@@ -464,6 +473,7 @@ contains
     END DO
 
     ! ******************* MODEL ***************************
+
     Q(1)=FF(1)          
     ! DEFINE THE GRADIENT GOPT OF THE FIRST MODEL
     DO I=1, N 
@@ -621,18 +631,19 @@ contains
   ! ******************************************************************
 
   SUBROUTINE SIGMA(H,N,NPT,Y,X,VETOR1,SIGM,ALFA,BETA,TAU,IT,DELTA)
-    IMPLICIT REAL*8 (A-H,O-Z)
+!!$    IMPLICIT REAL*8 (A-H,O-Z)
 !#include "tr_params.par"
 
     ! SCALAR ARGUMENTS
     integer :: IT,N,NPT
+    real(8) :: alfa,beta,delta,sigm,tau
 
     ! ARRAY ARGUMENTS
+    real(8) :: X(*), VETOR1(*), H(NPT+N+1,NPT+N+1), Y(NPT,N)
 
-    DIMENSION :: X(*), VETOR1(*) 
-    DIMENSION :: WW(NPT+N+1,1),AUXILIAR(4)           
-    DIMENSION :: H(NPT+N+1,NPT+N+1), Y(NPT,N), XBASE_A(INN)
+!!$    DIMENSION :: XBASE_A(INN)
 !!$    COMMON /XBASEA/ XBASE_A
+
     ! WW STORAGE THE VETOR1 IN W TO PRODUCE ALFA BETA TAU HOW IN
     ! DEFINITION.  SIGMA = ALFA BETA + TAU**2. ALFA = ET^T H ET,
     ! NAMELY, HTT (T = IT) IT INDICATE THAT THE VETOR1 IN POSITION TWO
@@ -641,6 +652,10 @@ contains
 
     ! LOCAL SCALARS
     integer :: i,IAUXILIAR,ITT,j,k,kkk
+    real(8) :: AGUARD,CONT,SIGMI
+
+    ! LOCAL ARRAYS
+    real(8) :: WW(NPT+N+1,1),AUXILIAR(4)           
 
     ITT=IT    ! STORAGE THE POSITION OF BEST ITERATING YET.          
     IT =1
@@ -699,6 +714,7 @@ contains
     END DO
 
     ! CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
     IT   = IAUXILIAR  
     ALFA = AUXILIAR(1) 
     BETA = AUXILIAR(2)
@@ -719,22 +735,25 @@ contains
 
   ! **************** UPDAT THE INVERSE H ******************************
   SUBROUTINE INVERSAH(H, N, NPT,VETOR1,SIGM,IT,ALFA,BETA,TAU)
-    IMPLICIT REAL*8 (A-H,O-Z)
+!!$    IMPLICIT REAL*8 (A-H,O-Z)
 
     ! SCALAR ARGUMENTS
     integer :: IT,N,NPT
+    real(8) :: alfa,beta,sigm,tau
 
     ! ARRAY ARGUMENTS
+    real(8) :: VETOR1(*),H(NPT+N+1,NPT+N+1)
 
 !#include "tr_params.par"
-    DIMENSION :: VETOR1(*)
-    DIMENSION :: P1(NPT+N+1,NPT+N+1) ,H(NPT+N+1,NPT+N+1)
-    DIMENSION :: P2(NPT+N+1,NPT+N+1),P3(NPT+N+1,NPT+N+1)
+
     ! ALFA*(E-MM) * (E-MM)'- BETA* H * E * E'*H+TAU*H*E*(E-MM)'+ (E-MM)* E'* H
     ! MM = H*WW THAT IS STORED IN VETOR1 
 
     ! LOCAL SCALARS
     integer :: i,j
+
+    ! LOCAL ARRAYS
+    real(8) :: P1(NPT+N+1,NPT+N+1),P2(NPT+N+1,NPT+N+1),P3(NPT+N+1,NPT+N+1)
 
     VETOR1(IT) = VETOR1(IT)-1.0D0              
     DO I=1, N+NPT+1
@@ -758,16 +777,18 @@ contains
 
   SUBROUTINE  SUBPROBLEMA(N, NPT, Q, DELTA, D, X, XL, XU, DSQ, M, &
        EQUATN, LINEAR, CCODED, XEPS, FLAG)
-    IMPLICIT REAL*8 (A-H,O-Z)
+!!$    IMPLICIT REAL*8 (A-H,O-Z)
 !#include "tr_params.par"
-    DIMENSION :: Q(*), X(*), XL(*),XU(*)
-!!$    DOUBLE PRECISION :: XBASE_A(INN) 
-!!$    DOUBLE PRECISION :: VQUAD_A, GRADD , VQUAD ,
+
+!!$    REAL(8) :: XBASE_A(INN) 
+!!$    REAL(8) :: VQUAD_A, GRADD , VQUAD ,
 
     ! SCALAR ARGUMENTS
     integer :: flag,m,N,NPT
+    real(8) :: delta,dsq,xeps
 
     ! ARRAY ARGUMENTS
+    real(8) :: Q(*), X(*), XL(*),XU(*),D(INN)
     logical :: ccoded(2),equatn(m), linear(m)
 
 !!$    COMMON /XBASEA/ XBASE_A           
@@ -775,10 +796,10 @@ contains
 
     ! LOCAL SCALARS
     integer :: i
-    double precision :: cnorm
+    real(8) :: cnorm,f,sum
 
     ! LOCAL ARRAYS
-    real(8) ::  XANTIGO(INN),L(N),H(NPT+N+1,NPT+N+1),XOPT_A(INN),D(INN),U(N) 
+    real(8) ::  XANTIGO(INN),L(N),H(NPT+N+1,NPT+N+1),XOPT_A(INN),U(N) 
 
     DO I = 1,N
        L(I)=  DMAX1(XL(I) - XBASE_A(I),X(I) - XBASE_A(I)-DELTA) 
@@ -831,24 +852,26 @@ contains
   ! ****************************************************************** 
 
   SUBROUTINE  ATUALIZAQ(H, N, NPT, Q, DELTA, Y, X, F, IT)
-    IMPLICIT REAL*8 (A-H,O-Z)
+!!$    IMPLICIT REAL*8 (A-H,O-Z)
 !#include "tr_params.par"
 
     ! SCALAR ARGUMENTS
     integer :: IT,N,NPT
+    real(8) :: delta,f
 
     ! ARRAY ARGUMENTS
-    DOUBLE PRECISION :: Q(*), X(*) 
+    REAL(8) :: Q(*),X(*),Y(NPT,N),H(NPT+N+1,NPT+N+1)
 
-    DIMENSION :: H(NPT+N+1,NPT+N+1),Y(NPT,N),VETORAUX(INN),DD(N,N)
-!!$    DOUBLE PRECISION :: GOPT_A(INN), HQ_A(INN**2), XBASE_A(INN)  
-    DIMENSION :: QQ((N+1)*(N+2)/2),  TEMP(1+N+NPT)     
+!!$    REAL(8) :: GOPT_A(INN), HQ_A(INN**2), XBASE_A(INN)  
 !!$    COMMON /VQUADA/ VQUAD_A, VQUAD 
 !!$    COMMON /XBASEA/ XBASE_A  
 !!$    COMMON / NOMETESTE /  GOPT_A, HQ_A    
 
     ! LOCAL SCALARS
     integer :: i,ii,j,jj,k
+
+    ! LOCAL ARRAYS
+    real(8) :: VETORAUX(INN),DD(N,N),QQ((N+1)*(N+2)/2),TEMP(1+N+NPT)
 
     DO I=1, 1+N+NPT
        TEMP(I) =  (F - VQUAD_A)* H(I, IT) ! IS LAMBDA 
@@ -910,7 +933,15 @@ contains
 !#include "tr_params.par"
 
     ! multiplica vetor por vetor
-    double precision :: v1(INN),v2(INN),soma,gradd
+
+    ! SCALAR ARGUMENTS
+    real(8) :: gradd
+
+    ! ARRAY ARGUMENTS
+    real(8) :: v1(INN),v2(INN)
+
+    ! LOCAL SCALARS
+    real(8) :: soma
     integer :: j,n
 
     soma=0
@@ -933,9 +964,15 @@ contains
     ! multiplica matriz simetrica (dada como vetor) por vetor
     ! estava com hs, e troquei para hss para nao atualizar hs desnec
 
-    double precision :: S(INN), HQ(INN ** 2), HSS(INN), v(INN)
+    ! ARRAY ARGUMENTS
+    real(8) :: S(INN), HQ(INN ** 2),v(INN)
 
-    integer :: n, i, j , IH
+    ! LOCAL ARRAYS
+    real(8) :: HSS(INN)
+
+    ! LOCAL SCALARS
+    integer :: n,i,IH,j
+
     IH=0
     DO J=1,N
        HSS(J)= 0
