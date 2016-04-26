@@ -19,7 +19,7 @@ module trdf
 
   ! COMMON ARRAYS
 
-  real(8) :: XBASE_A(INN), GOPT_A(INN), HQ_A(INN ** 2)
+  real(8) :: XBASE_A(INN), GOPT_A(INN), HQ_A(INN ** 2), XOPT_A(INN)
 
   ! COMMON SUBROUTINES
 
@@ -515,7 +515,7 @@ contains
           DO J=1, N
              YY(J) = Y(I,J) 
           END DO
-          CALL CALFUN(N,YY,FF(I))   
+          CALL CALFUN(N,YY,FF(I),FLAG)   
 
           IF ( FLAG .NE. 0 ) RETURN
 
@@ -799,7 +799,7 @@ contains
     real(8) :: cnorm,f,sum
 
     ! LOCAL ARRAYS
-    real(8) ::  XANTIGO(INN),L(N),H(NPT+N+1,NPT+N+1),XOPT_A(INN),U(N) 
+    real(8) ::  XANTIGO(INN),L(N),H(NPT+N+1,NPT+N+1),U(N) 
 
     DO I = 1,N
        L(I)=  DMAX1(XL(I) - XBASE_A(I),X(I) - XBASE_A(I)-DELTA) 
@@ -985,5 +985,272 @@ contains
     end DO
     return
   end subroutine mmv
+  
+  ! ******************************************************************
+  ! ******************************************************************
+
+  subroutine calfun(n,x,f,flag)
+
+    ! SCALAR ARGUMENTS
+    integer :: flag,n
+    real(8) :: f
+
+    ! ARRAY ARGUMENTS
+    real(8) :: x(n)
+
+!!$    ! COMMON BLOCKS
+!!$    integer :: IC,MAXIC
+!!$
+!!$    common /CONTA1/ IC, MAXIC
+
+    flag = 0
+
+    ! Returns flag = 3 if reached the maximum of function evaluations
+    if ( IC .eq. MAXIC ) then 
+       flag = 3
+       return
+    end if
+
+    ! TODO: add 'flag' to calobjf
+    call calobjf(n,x,f)
+
+    IC = IC + 1
+
+  end subroutine calfun
+
+  subroutine mevalf(n,x,f,flag)
+
+    implicit none
+
+!#include "tr_params.par"
+
+    ! SCALAR ARGUMENTS
+    integer :: flag,n
+    real(8) :: f
+
+    ! ARRAY ARGUMENTS
+    real(8) :: x(n)
+
+!!$    ! COMMON BLOCKS
+!!$    real(8) :: gopt_a(NMAX),hq_a(NMAX * NMAX)
+!!$
+!!$    common /nometeste/ gopt_a,hq_a
+
+    ! LOCAL ARRAYS
+    real(8) :: hqd(n)
+
+    ! LOCAL SCALARS
+    real(8) :: gradd,dhqd
+
+    flag = 0
+
+    ! avalia o modelo quadratico f, no ponto d
+
+    ! definindo o modelo quadratico f
+    call mvv(GOPT_a,x, n, gradd)
+    call mmv(HQ_a, x, n, hqd)
+    call mvv(x, hqd, n, dhqd)
+
+    f = gradd + dhqd / 2.0D0
+
+  end subroutine mevalf
+
+  !     ******************************************************************
+  !     ******************************************************************
+
+  subroutine mevalg(n,x,g,flag)
+
+    implicit none
+
+!#include "tr_params.par"
+
+    ! SCALAR ARGUMENTS
+    integer :: flag,n
+
+    ! ARRAY ARGUMENTS
+    real(8) :: g(n),x(n)
+
+!!$    ! COMMON BLOCKS
+!!$    real(8) :: gopt_a(NMAX),hq_a(NMAX * NMAX)
+!!$
+!!$    common /nometeste/ gopt_a,hq_a
+
+    ! LOCAL ARRAYS
+    real(8) :: hqd(n)
+
+    ! LOCAL SCALARS
+    integer :: i
+
+    flag = 0
+
+    ! avalia o gradiente do modelo quadratico g, no ponto d
+    call mmv(HQ_a, x, n, hqd)
+    do i=1, n
+       g(i)=  GOPT_a(i) + hqd(i)
+    end do
+
+  end subroutine mevalg
+
+  ! ******************************************************************
+  ! ******************************************************************
+
+  subroutine mevalh(n,x,hrow,hcol,hval,hnnz,lim,lmem,flag)
+
+    implicit none
+
+!#include "tr_params.par"
+
+    ! SCALAR ARGUMENTS
+    logical :: lmem
+    integer :: flag,n,hnnz,lim
+
+    ! ARRAY ARGUMENTS
+    integer :: hcol(lim),hrow(lim)
+    real(8) :: hval(lim),x(n)
+
+!!$    !     COMMON BLOCKS
+!!$    real(8) :: gopt_a(NMAX),hq_a(NMAX * NMAX)
+!!$
+!!$    common /nometeste/ gopt_a,hq_a
+
+    ! LOCAL SCALARS
+    integer :: i,iii,j
+
+    flag = 0
+    lmem = .false.
+
+    hnnz = (N + 1) * N / 2
+
+    ! cria hlin e hcol com as coordenadas da triangular inferior
+
+    III=1
+    DO WHILE (III .LE.  (N+1)*N/2 )
+       do I=1, N
+          DO J= 1, I
+             hrow(III) = I
+             hcol(III) = J
+             III= III + 1
+          end do
+       end do
+    END DO
+
+    do i=1,(N+1)*N/2
+       hval(i) = HQ_a(i)
+    end do
+
+  end subroutine mevalh
+
+  !     ******************************************************************
+  !     ******************************************************************
+
+  subroutine mevalc(n,x,ind,c,flag)
+
+    implicit none
+
+!#include "tr_params.par"
+
+    ! SCALAR ARGUMENTS
+    integer :: ind,flag,n
+    real(8) :: c
+
+    ! ARRAY ARGUMENTS
+    real(8) :: x(n)
+
+!!$    ! COMMON BLOCKS
+!!$    real(8) :: XBASE_A(NMAX),XOPT_A(NMAX)
+!!$
+!!$    COMMON /XBASEA/ XBASE_A
+!!$    COMMON /XOPTA/ XOPT_A
+
+    ! LOCAL ARRAYS
+    real(8) :: XA(NMAX)
+
+    ! LOCAL SCALARS
+    integer :: i
+
+    flag = 0
+
+    DO I=1, N
+       XA(I) = X(I) + XOPT_A(I) + XBASE_A(I)
+    END DO
+
+    call calcon(n,XA,ind,c)
+
+  end subroutine mevalc
+
+  ! ******************************************************************
+  ! ******************************************************************
+
+  subroutine mevaljac(n,x,ind,jcvar,jcval,jcnnz,lim,lmem,flag)
+
+    implicit none
+
+!#include "tr_params.par"
+
+    ! SCALAR ARGUMENTS
+    logical :: lmem
+    integer :: flag,ind,jcnnz,lim,n
+
+    ! ARRAY ARGUMENTS
+    integer :: jcvar(lim)
+    real(8) :: x(n),jcval(lim)
+
+!!$    ! COMMON BLOCKS
+!!$    real(8) :: XBASE_A(NMAX),XOPT_A(NMAX)
+!!$
+!!$    COMMON /XBASEA/ XBASE_A
+!!$    COMMON /XOPTA/ XOPT_A
+
+    ! LOCAL ARRAYS
+    real(8) :: XA(NMAX)
+
+    ! LOCAL SCALARS
+    integer :: i
+
+    DO I=1, N
+       XA(I) = X(I) + XOPT_A(I) + XBASE_A(I)
+    END DO
+
+    call caljac(n,XA,ind,jcvar,jcval,jcnnz,lim,lmem,flag)
+
+  end subroutine mevaljac
+
+  ! ******************************************************************
+  ! ******************************************************************
+
+  subroutine mevalhc(n,x,ind,hcrow,hccol,hcval,hcnnz,lim,lmem,flag)
+
+    implicit none
+
+!#include "tr_params.par"
+
+    ! SCALAR ARGUMENTS
+    logical :: lmem
+    integer :: flag,hcnnz,ind,lim,n
+
+    ! ARRAY ARGUMENTS
+    integer :: hccol(lim),hcrow(lim)
+    real(8) :: hcval(lim),x(n)
+
+!!$    ! COMMON BLOCKS
+!!$    real(8) :: XBASE_A(NMAX),XOPT_A(NMAX)
+!!$
+!!$    COMMON /XBASEA/ XBASE_A
+!!$    COMMON /XOPTA/ XOPT_A
+
+    ! LOCAL ARRAYS
+    real(8) :: XA(NMAX)
+
+    ! LOCAL SCALARS
+    integer :: i
+
+    DO i = 1,n
+       XA(I) = X(I) + XOPT_A(I) + XBASE_A(I)
+    END DO
+
+    call calhc(n,XA,ind,hcrow,hccol,hcval,hcnnz,lim,lmem,flag)
+
+  end subroutine mevalhc
+
 
 end module trdf
