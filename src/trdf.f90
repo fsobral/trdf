@@ -76,6 +76,10 @@ module trdf
 
   end interface
 
+  private
+
+  public :: TRDFSUB
+
 contains
 
   SUBROUTINE TRDFSUB(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,EVALF_,EVALC_, &
