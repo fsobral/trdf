@@ -1,5 +1,7 @@
-      SUBROUTINE EASYTRDF(N,X,XL,XU,M,EQUATN,LINEAR,CCODED,F,FEAS,
-     +                    FCNT)
+      SUBROUTINE EASYTRDF(N,X,XL,XU,M,EQUATN,LINEAR,CCODED,EVALF,EVALC,
+     +     EVALJAC,EVALHC,F,FEAS,FCNT)
+
+      use trdf
 
       IMPLICIT NONE
 
@@ -17,6 +19,9 @@ C     ARRAY ARGUMENTS
 C     LOCAL SCALARS
       integer MAXFCNT,NPT
       double precision RBEG,REND,XEPS
+
+C     EXTERNAL SUBROUTINES
+      external EVALF,EVALC,EVALJAC,EVALHC
 
 C     NUMBER OF INTERPOLATION POITNS. 
 
@@ -36,16 +41,16 @@ C     SETS DEFAULT PARAMETERS
 
 C     CALLS THE TRUE SUBROUTINE
 
-      CALL TRDF(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,MAXFCNT,RBEG,REND,
-     +          XEPS,F,FEAS,FCNT)
+      CALL TRDF(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,EVALF,EVALC,
+     +          EVALJAC,EVALHC,MAXFCNT,RBEG,REND,XEPS,F,FEAS,FCNT)
 
       END
 
 C     ******************************************************************
 C     ******************************************************************
 
-      SUBROUTINE TRDF(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,MAXFCNT,RBEG,
-     +                REND,XEPS,F,FEAS,FCNT)     
+      SUBROUTINE TRDF(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,EVALF,EVALC,
+     +                EVALJAC,EVALHC,MAXFCNT,RBEG,REND,XEPS,F,FEAS,FCNT)     
 
 C     This subroutine is the implementation of the Derivative-free
 C     Trust-region algorithm for constrained optimization described in
@@ -113,6 +118,9 @@ C     SCALAR ARGUMENTS
 C     ARRAY ARGUMENTS
       DOUBLE PRECISION  X(N),XL(N),XU(N)
       logical ccoded(2),equatn(m),linear(m)
+
+C     EXTERNAL SUBROUTINES
+      external EVALF,EVALC,EVALJAC,EVALHC
 
 C     COMMON SCALARS
       integer IC,MAXIC
