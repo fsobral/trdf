@@ -1,0 +1,467 @@
+% Readme 
+% Conejo, Karas e Pedroso
+% dicas para rodar nosso programa
+% Abril 2015
+% Free-derivative algorithm
+\documentclass[12pt]{article} 
+
+\usepackage[pdftitle={TRDF Tutorial},%
+  breaklinks=true,%
+  colorlinks=true,%
+  linkcolor=blue,anchorcolor=blue,%
+  citecolor=blue,filecolor=blue,%
+  menucolor=blue,%
+  urlcolor=blue]{hyperref}
+  
+  
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{color}
+\usepackage{amsmath}
+\usepackage{indentfirst}
+\usepackage{psfrag}
+\usepackage{textcomp}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{caption} 
+%\usepackage{wrapfig}
+\usepackage[all]{xy}
+\usepackage{hyperref}
+% \usepackage{txfonts}
+\bibliographystyle{plain}
+%\usepackage{setspace}\onehalfspace
+\newcommand{\HR}[2]{\href{#1}{#2}}
+\newcommand{\pagina}{\HR{http://people.ufpr.br/~ewkaras/pesquisa/publicacoes/supplemental_conejo_karas_pedroso.html}{this
+    page}}
+
+%==================================================================
+ 
+\begin{document}
+\title{TRDF Tutorial\\A trust-region derivative-free algorithm for constrained optimization
+}
+
+\author{}
+
+\maketitle
+
+
+This text describes how to use the implemented algorithm TRDF proposed
+in \cite{conejo2}. The algorithm solves the problem
+\begin{equation}
+\label{problem1}
+\begin{array}{ll}
+\text{minimize}  & \ f(x)\\
+\mbox{subject to} & x\in\Omega
+\end{array}\end{equation}
+where $f:{\mathbb R}^n \to {\mathbb R}$ and $ \Omega=\{x\in{\mathbb
+  R}^n \mid h(x)=0, g(x)\leq 0 \} $ where $h:{\mathbb R}^n\to{\mathbb
+  R}^p$ and $g:{\mathbb R}^n\to{\mathbb R}^q$ are differentiable
+functions. Although the algorithm can be applied when the objective
+function is nonsmooth, it was designed for the class of problems in
+which $f$ is smooth but its derivatives are not available.
+
+The algorithm is implemented in {\tt Fortran} and is available at
+\pagina \footnote{http://people.ufpr.br/$\sim$ewkaras/pesquisa/publicacoes/supplemental\_conejo\_karas\_pedroso.html}.
+
+In Section~\ref{running}, we show how to compile and run a simple
+problem for testing TRDF. Section~\ref{hs} is devoted to explaining
+how to reproduce the numerical experiments with the Hock-Schittkowski
+test problems. In sections~\ref{user} and~\ref{trdf} we explain how
+the user can write his/her own problems and how to call the TRDF
+subroutine using the correct parameters. Section~\ref{params} explains
+the inner parameters defined in \texttt{tr\_params.par}. Finally, in
+Section~\ref{solver} we describe how an advanced user can write an
+interface and change the inner solver used by TRDF.
+
+% To run a simple example of the algorithm in a Linux machine with
+% \texttt{gfortran} and \texttt{gcc} packages, it is enough to download
+% the folder TRDF and run
+% \begin{verbatim}
+% make trdf
+% \end{verbatim}
+
+
+% %These commands allow to run the algorithm with the  example test-problem.
+% The  problem to be solved is defined in {\tt TRDF.f} and {\tt INIP.PROB} files:
+% \begin{enumerate}
+% \item In {\tt TRDF.f} file,  define:
+% \begin{enumerate}
+% \item  the size of the problem, {\tt N};
+% \item the number of interpolation points {\tt NPT} (from $2\mbox{\tt N} + 1$ to $(\mbox{\tt N} + 1)(\mbox{\tt N} + 2) / 2$);
+% \item the starting point {\tt X};
+% \item  the box-constraints defined by lower and upper bounds, {\tt XL} and {\tt XU}. 
+% \end {enumerate}
+% \item In {\tt TRDF.f} file, edit the subroutine {\tt CALFUN} which defines the objective function.
+% \item In {\tt INIP.PROB} file, define the constraints as in {\tt Algencan}. 
+% %The subroutines that define the objective function, the gradient and the Hessian of the quadratic model are automatically updated.
+%  Remember that the box-constraints were fixed in {\tt TRDF.f} file.
+% \end{enumerate}
+
+\section{Compiling and running}
+\label{running}
+
+The present implementation of the TRDF algorithm contains an example
+problem (problem 37 from the Hock \& Schittkowski~\cite{hs} test
+set). The file \texttt{trdf\_main.f} shows how to implement the
+necessary subroutines, define the problem and call TRDF.
+
+By default, the TRDF implementation uses the nonlinear programming
+algorithm ALGENCAN~\cite{algencan,tango} for solving the constrained
+trust-region subproblems. Two versions of ALGENCAN are supported:
+2.2.1 and 3.0.0 (default). In order to use such versions, the user has
+to download ALGENCAN and create the library
+\texttt{libalgencan.a}. Version 3.0.0 already has a natural way to
+create it, by simply typing \texttt{make} inside the top-level
+directory of ALGENCAN. The library will be created at subdirectory
+\texttt{lib}. See Section~\ref{solver} for more information on how to
+write an interface to a different nonlinear programming solver.
+
+After creating ALGENCAN's library, the user has to edit the
+\texttt{Makefile} and change the path to the solver' library in
+variable \texttt{SOLVERLIB}. Then, just type
+\begin{verbatim}
+make trdf
+\end{verbatim}
+to build the executable.
+
+If version 2.2.1 is used, the user must manually build the library, by
+entering in the (already downloaded) ALGENCAN directory and typing the
+following commands:
+\begin{verbatim}
+gfortran -xf77-cpp-input -c *.f
+ar ruv libalgencan.a *.o
+\end{verbatim}
+Then, the file \texttt{Makefile} should be edited to inform the path
+to the library in variable \texttt{SOLVERLIB} \texttt{and} variable
+\texttt{SOLVER} has to be changed to \texttt{algencan\_old\_solver}.
+
+The user is able to suppress ALGENCAN's output by creating an empty
+file called \texttt{.silent} in the same directory where the
+executable will be run. This can be done by typing
+\begin{verbatim}
+touch .silent
+\end{verbatim}
+in the terminal. To suppress TRDF's output, please see
+Section~\ref{params}.
+
+Additionally, the present implementation also contains an interface to
+the C language. Users familiar with the C language can write their
+problems and solve using the TRDF algorithm. An example of how to
+define a problem is implemented in file \texttt{trdf\_main.c}
+(problem~37 of the Hock \& Schittkowski~\cite{hs} test set). The
+process of building the libraries is the same for the \texttt{Fortran}
+case, except that, the in the last step,
+\begin{verbatim}
+make c_trdf
+\end{verbatim}
+should be typed.
+
+\subsection*{Quick start}
+For quickly building the first example, under ALGENCAN 3.0.0, follow
+the steps below:
+\begin{enumerate}
+\item Download and unpack ALGENCAN 3.0.0 in~\cite{tango};
+\item In the root directory of ALGENCAN, build \texttt{libalgencan.a}
+  by typing \texttt{make}. The file should be under \texttt{lib}
+  subdirectory;
+\item Download and unpack TRDF;
+\item Under TRDF's directory, edit, in the file \texttt{Makefile}, the
+  variable \texttt{SOLVERLIB} with the full path to the \texttt{lib}
+  subdirectory of ALGENCAN;
+\item Type \texttt{make trdf} ;
+\item Suppress ALGENCAN's output by typing \texttt{touch .silent} ;
+\item Run the TRDF example with \texttt{./trdf} .
+\end{enumerate}
+
+\section{Running the full Hock-Schittkowski test set}
+\label{hs}
+
+In order to reproduce the experiments of the supplemental material,
+the user should build the \texttt{hstests} executable. For this task,
+it is necessary first to build a library with the Hock-Schittkowski
+test problems. The updated (Oct, 2011) source file of the problems can
+be downloaded at
+\begin{center}
+\url{http://www.ai7.uni-bayreuth.de/tpnp08.htm}
+\end{center}
+but we provide an older version with TRDF (with some personal
+corrections). The numerical experiments were performed with the
+provided old version.
+
+To build this executable is sufficient to build ALGENCAN's library, as
+described in Section~\ref{running}, and then follow the steps below:
+\begin{enumerate}
+\item Type \texttt{make hstests} ;
+\item Run the executable by typing \texttt{./hstests} ;
+\item Write the problem number and hit Enter.
+\end{enumerate}
+
+An output file called \texttt{runhs.out} is created with the following
+values: the problem number, number of variables, number of inequality
+constraints, number of equality constraints, the best (known) value of
+the objective function, the objective function value found by TRDF,
+the sup-norm of the infeasibility (see Section~\ref{trdf}), and the
+number of performed function evaluations.
+
+We also provide a shell script \texttt{runhstests.sh} which runs
+\underline{all} the test problems considered in the supplemental
+material. In order to use this script, build the \texttt{hstests}
+executable then type
+\begin{verbatim}
+./runhstests.sh hstests
+\end{verbatim}
+For each test problem, at most 30 minutes of CPU time will be
+allowed. A file called \texttt{analysis-all} will be created at the
+end of the tests, where each column was explained in the former
+paragraph.
+
+
+\section{The user-defined problem}
+\label{user}
+
+The user should define his/her own problem in a separate file. We
+provide an possible example of implementation in file
+\texttt{trdf\_main.f}. This file contains the main program where all
+the input parameters are defined and the main TRDF subroutine is
+called. Each TRDF parameter is fully detailed in
+Section~\ref{trdf}. In addition, 4 user subroutines can be used by the
+algorithm:
+\begin{itemize}
+\item \texttt{calobjf}: calculates the objective function
+\item \texttt{calcon}: calculates the $i$-th constraint
+\item \texttt{caljac}: calculates the sparse Jacobian of the $i$-th
+  constraint
+\item \texttt{calhc}: calculates the sparse Hessian of the $i$-th
+  constraint
+\end{itemize}
+
+We suppose that at least two subroutines \textbf{have} to be coded by
+the user: \texttt{calobjf} and \texttt{calcon} (if the problem has
+constraints). If the problem does not have constraints, the user
+should set $m = 0$ and create an empty subroutine.
+
+Depending on the solver used for the subproblems (see
+Section~\ref{solver}) the user can provide two more subroutines,
+related with the first and second derivatives of the
+constraints. ALGENCAN~\cite{tango}, the solver supported by default,
+is able to use first and second order information. If subroutine
+\texttt{caljac} is provided, the the user should set \texttt{CCODED(1)
+  = .true.} in the main program. Likewise, if subroutine
+\texttt{calhc} is provided, then \texttt{CCODED(2) = .true.} should be
+set in the main program.
+
+If the user does not want to use first and second order information to
+solve his/her problem, both subroutines should still be present,
+should be empty, return flag $-1$ and their respective \texttt{CCODED}
+values should be set to \texttt{.false.}.
+
+\section{The \texttt{TRDF} subroutine}
+\label{trdf}
+
+A full call to the TRDF subroutine is as follows:
+
+\begin{verbatim}
+      CALL TRDF(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,
+     +          MAXFCNT,RBEG,REND,XEPS,
+     +          F,FEAS,FCNT)     
+\end{verbatim}
+
+Basically, the first line contains problem specific input parameters,
+the second line contains configuration parameters (which can be
+omitted by a call to the \texttt{EASYTRDF} subroutine) and the third
+line contains the output parameters. Variable \texttt{X} is an
+exception, since it is used as both input, for the starting point, and
+output, for the solution found by the algorithm. The \texttt{EASYTRDF}
+subroutine is an alias to the \texttt{TRDF} subroutine, where the
+parameters \texttt{NPT}, \texttt{MAXFCNT}, \texttt{RBEG},
+\texttt{REND} and \texttt{XEPS} are set to their default values.
+
+Each one of the arguments is described below.
+
+\begin{itemize}
+\item \texttt{N} (integer, input): the dimension of the problem
+\item \texttt{NPT} (integer, input): the number of points used for
+  building the quadratic model of the objective function. Must be an
+  integer in the range $[2N + 1,(N + 1)(N + 2) / 2]$
+\item \texttt{X(N)} (double precision, input/output): as input,
+  contains the initial point used for the subroutine. If the provided
+  initial point is infeasible, the phase 0 is applied, an attempt to
+  project it onto the feasible set $\Omega$ by calling \texttt{SOLVER}
+  with \texttt{PHASE0 = .true.}. As output, it is the solution found
+  by the algorithm
+\item \texttt{XL(N)} and \texttt{XU(N)} (double precision, input): the
+  lower and upper bounds on variable \texttt{X}, respectively
+\item \texttt{M} (integer, input): the number of constraints of the problem
+\item \texttt{EQUATN(M)} (logical, input): if \texttt{EQUATN(i)} is
+  \texttt{.true.}, then constraint $i$ is an equality constraint
+\item \texttt{LINEAR(M)} (logical, input): if \texttt{LINEAR(i)} is
+  \texttt{.true.}, then constraint $i$ is a linear constraint
+\item \texttt{CCODED(2)} (logical, input): indicates if the Jacobian
+  (\texttt{CCODED(1) = .true.}) and the Hessian (\texttt{CCODED(2) =
+    .true.}) of the constraints will be provided (see
+  Section~\ref{user} for a description of the subroutines that should
+  be provided by the user)
+\item \texttt{MAXFCNT} (integer, input): the maximum number of allowed
+  function evaluations
+\item \texttt{RBEG} (double precision, input): the initial value of the
+  trust-region radius
+\item \texttt{REND} (double precision, input): the final value of the
+  trust-region radius, used for declaring convergence of the method
+\item \texttt{XEPS} (double precision, input): the tolerance used by
+  the method to decide if a point is feasible or not
+\item \texttt{F} (double precision, output): the value of the
+  objective function at the solution
+\item \texttt{FEAS} (double precision, output): the sup-norm of the
+  infeasibility at the solution ($\max\{\|g(x^*)\|_\infty,
+  \|h(x^*)\|_\infty\}$)
+\item \texttt{FCNT} (integer, output): the number of function
+  evaluations used to find the solution
+\end{itemize}
+
+\section{The file \texttt{tr\_params.par}}
+\label{params}
+
+The file \texttt{tr\_params.par} contains internal parameters used by
+TRDF. They define the size of the arrays and also reduce the number of
+parameters passed to the TRDF subroutine. Below we describe each
+parameter in detail.
+
+\begin{itemize}
+\item \texttt{NMAX} is the maximum number of variables that are
+  allowed. When solving problem with more than 1000 variables (or when
+  working on a computer with very low CPU) it is necessary to change
+  this value
+
+\item \texttt{MMAX} is the maximum number of constraints. The same
+  argument used for \texttt{NMAX} is applied here
+
+\item \texttt{JCNNZMAX} is the maximum number of non null elements in
+  the Jacobian of the constraints. The default value is set to be the
+  full Jacobian (\texttt{NMAX} $\times$ \texttt{MMAX})
+
+\item \texttt{HCNNZMAX} is the maximum number of non null elements in
+  the Hessian of the objective function and of each constraint. The
+  default value is set to be the case where all the elements of the
+  Hessians are non null (\texttt{NMAX}$^2 \times (1 + $
+  \texttt{MMAX}$)$)
+
+\item \texttt{MAXXEL} is the maximum number of elements of the vector
+  \texttt{X} that are displayed in the output
+
+\item \texttt{INN} is a internal parameter that in most cases should
+  have the same value of \texttt{NMAX}. So, if the user changes the
+  value of \texttt{NMAX} it is recommended to also change this
+  parameter
+
+\item \texttt{OUTPUT} is a logical parameter that enables the output
+  of TRDF if set to \texttt{.true.} and disables it, if set to
+  \texttt{.false.}
+\end{itemize}
+
+\section{The \texttt{SOLVER} interface}
+\label{solver}
+
+At iteration $k$, $k = 1,\dots$, the algorithm needs to solve the
+following constrained nonlinear subproblem:
+\begin{equation}
+  \label{problem2}
+  \begin{array}{ll}
+    \text{minimize}  & \ m_k(x)\\
+    \mbox{subject to} & x\in\Omega \cap B_k
+  \end{array}\end{equation}
+where $m_k$ is the quadratic model for the objective function $f$ at
+iteration $k$, $\Omega$ was defined in problem~\eqref{problem1} and
+$B_k$ is the trust-region at iteration $k$.
+
+The implementation of the TRDF algorithm is independent on the solver
+used for the constrained trust-region subproblems. It is important to
+note that problem~\eqref{problem2} has derivatives if the constraints
+of the original problem~\eqref{problem1} have derivatives, since the
+quadratic model has first and second derivatives.
+
+In order to use a nonlinear solver for problem~\eqref{problem2}, it
+is necessary to write an interface between TRDF and the desired
+solver. This interface is given by subroutine \texttt{SOLVER}:
+
+\begin{verbatim}
+      SUBROUTINE SOLVER(N, L, U, X, M, EQUATN, LINEAR, CCODED,
+     +                  PHASE0, EPS, CNORM, FLAG)
+\end{verbatim}
+
+The current implementation of TRDF provides two examples of
+interfaces:\\ \texttt{algencan\_solver.f} is an interface for the
+nonlinear solver ALGENCAN at version 3.0.0 and
+\texttt{algencan\_old\_solver.f} is an interface for version 2.2.1. Each
+time that TRDF subroutines call \texttt{SOLVER}, they expect that it
+returns the solution \texttt{X}, its sup-norm of infeasibility
+\texttt{CNORM} and a flag \texttt{FLAG}. If the solver finished
+correctly, the flag must be 0. If problems have occurred during
+optimization of~\eqref{problem2}, then the flag must be 2.
+
+Below we describe each argument of the solver interface.
+
+\begin{itemize}
+\item \texttt{N} (integer, input): the dimension of the problem
+\item \texttt{L(N)} and \texttt{U(N)} (double precision, input): the
+  lower and upper bounds on variable \texttt{X}, respectively
+\item \texttt{X(N)} (double precision, input/output): on entry, is the
+  point used by the solver as starting point. On return, is the
+  solution of problem~\eqref{problem2}
+\item \texttt{EQUATN(M)}, \texttt{LINEAR(M)} and \texttt{CCODED(2)}
+  (logical, input): this arguments have already been explained in
+  Section~\ref{trdf}
+\item \texttt{PHASE0} (logical, input): if \texttt{.true.} indicates
+  that a projection onto $\Omega$ should be performed (thus, the
+  objective function should be ignored), otherwise indicates that the
+  full problem~\eqref{problem2} should be solved
+\item \texttt{EPS} (double precision, input): the feasibility
+  tolerance
+\item \texttt{CNORM} (double precision, output): the sup-norm of the
+  infeasibility at the solution found by the solver
+\item \texttt{FLAG} (integer, output): indicates the status when
+  returning. Must be $0$ if the solver converged correctly or $2$ if
+  errors have occurred
+\end{itemize}
+
+After creating the specific solver interface, variables
+\texttt{SOLVERLIB}, \texttt{SOLVER} and \texttt{SLOPTS} in
+\texttt{Makefile} have to be changed, in order to use the new solver's
+files and libraries when building TRDF.
+
+\section*{More information}
+
+If there are any doubts, fell free to send an email to Paulo
+D. Conejo
+\begin{center}
+  \url{pconejo33@gmail.com}
+\end{center}
+or Francisco N. C. Sobral
+\begin{center}
+  \url{fncsobral@uem.br}
+\end{center}
+
+
+\begin{thebibliography}{10}
+\bibitem{conejo2}
+P.~D. Conejo, E.~W. Karas, L.~G. Pedroso.
+\newblock  A trust-region derivative-free algorithm for constrained optimization.
+\newblock {\em  Optimization Methods \& Software}, to appear, 2015.
+
+\bibitem{algencan} R. Andreani, E. G. Birgin, J. M. Martínez, and
+  M. L. Schuverdt.  \newblock On Augmented Lagrangian Methods with
+  General Lower-Level Constraints \newblock SIAM Journal on
+  Optimization, vol. 18, no. 4, pp. 1286–1309, 2008.
+
+\bibitem{tango} ``Trustable Algorithms for Nonlinear General
+  Optimization'',
+  \HR{www.ime.usp.br/$\sim$egbirgin/tango}{www.ime.usp.br/$\sim$egbirgin/tango}.
+
+\bibitem{hs} K. Schittkowski. \newblock Test Examples for Nonlinear
+  Programming Codes - All Problems from the
+  Hock-Schittkowski-Collection, 2009.
+\end{thebibliography}
+
+\end{document}
