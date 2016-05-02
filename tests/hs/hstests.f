@@ -1,13 +1,25 @@
-         PROGRAM PRINCIPAL
-         IMPLICIT REAL*8 (A-H,O-Z)
+      PROGRAM PRINCIPAL
+      
+      IMPLICIT NONE
+
 #include "tr_params.par"
-         LOGICAL ccoded(2),equatn(MMAX),linear(MMAX)
-         double precision XX(NMAX),L(NMAX),U(NMAX),
-     1     GOPT_A(NMAX), HQ_A(NMAX**2) 
-         REAL :: tempoinicial, tempofinal  
-         COMMON / NOMETESTE /  GOPT_A, HQ_A  
+
+C     LOCAL SCALARS
+
+      integer I,M,NN,NPT
+      double precision RELDIFF
+
+C     LOCAL ARRAYS
+
+      LOGICAL ccoded(2),equatn(MMAX),linear(MMAX)
+      double precision XX(NMAX),L(NMAX),U(NMAX)
+
+C     USER-DEFINED SUBROUTINES
+
+      external calobjf,calcon,caljac,calhc
 
 C     COMMON SCALARS
+
       integer N,NILI,NINL,NELI,NENL,NEX,NTP
       logical INDEX1(MMAX),INDEX2(MMAX),LXL(NMAX),LXU(NMAX)
       double precision G(MMAX),GG(NMAX * MMAX),X(NMAX),XL(NMAX),XU(NMAX)
@@ -15,9 +27,11 @@ C     COMMON SCALARS
       double precision FEX
 
 C     COMMON ARRAYS
+
       double precision XEX(NMAX * NMAX)
 
 C     COMMON BLOCKS
+
       common/L1/N,NILI,NINL,NELI,NENL
       common/L2/X
       common/L3/G
@@ -32,11 +46,12 @@ C     COMMON BLOCKS
       COMMON/L20/LEX,NEX,FEX,XEX
 
 C     LOCAL SCALARS
+
       character OPTM
       integer FCNT,MAXFCNT
       double precision C,F,FEAS,RBEG,REND,XEPS
 
-C      WRITE(*,*) 'Number of the problem: '
+C     WRITE(*,*) 'Number of the problem: '
       READ(*,*)NTP
 
       CALL CONV(1)
@@ -52,11 +67,11 @@ C     NUMBER OF INTERPOLATION POITNS.
          NPT = 2 * nn + 3
       end if
 
-C      INITIAL POINT AND BOX CONSTRAINTS.
+C     INITIAL POINT AND BOX CONSTRAINTS.
 
-        do i = 1,nn
-           xx(i) = X(i)
-        end do
+      do i = 1,nn
+         xx(i) = X(i)
+      end do
 
       do i = 1,nn
          if ( LXL(i) ) then
@@ -122,40 +137,40 @@ C     Some HS problems do not have derivatives of the constraints
 
 C     CALLS THE ALGORITHM
 
-       open(75,FILE='runhs.out')
-       write(75,0020) NTP,N,NILI + NINL,NELI + NENL,1.0D20,1.0D20,
-     +      1.0D20,-1
-       close(75)
+      open(75,FILE='runhs.out')
+      write(75,0020) NTP,N,NILI + NINL,NELI + NENL,1.0D20,1.0D20,
+     +     1.0D20,-1
+      close(75)
 
-       MAXFCNT = 100000
+      MAXFCNT = 100000
       
-       RBEG = 1.0D-1
-       REND = 1.0D-4
-       XEPS = 1.0D-8
+      RBEG = 1.0D-1
+      REND = 1.0D-4
+      XEPS = 1.0D-8
 
-       CALL TRDF(NN,NPT,XX,L,U,M,EQUATN,LINEAR,CCODED,MAXFCNT,RBEG,REND,
-     +           XEPS,F,FEAS,FCNT)
+      CALL FULLTRDF(NN,NPT,XX,L,U,M,EQUATN,LINEAR,CCODED,CALOBJF,CALCON,
+     +              CALJAC,CALHC,MAXFCNT,RBEG,REND,XEPS,F,FEAS,FCNT)
 
-       reldiff = (f - FEX) / max(1.0D0,abs(f),abs(FEX))
+      reldiff = (f - FEX) / max(1.0D0,abs(f),abs(FEX))
 
-       optm = ' '
-       if ( reldiff .le. 1.0D-01 .and. FEAS .le. XEPS ) then
-          optm = '*'
-       end if
+      optm = ' '
+      if ( reldiff .le. 1.0D-01 .and. FEAS .le. XEPS ) then
+         optm = '*'
+      end if
 
-       open(75,FILE='runhs.out')
-       write(75,0020) NTP,N,NILI + NINL,NELI + NENL,FEX,F,FEAS,FCNT
-       write(*,0021) NTP,N,NILI + NINL,NELI + NENL,FEX,F,FEAS,FCNT,
-     +      optm
-       close(75)
+      open(75,FILE='runhs.out')
+      write(75,0020) NTP,N,NILI + NINL,NELI + NENL,FEX,F,FEAS,FCNT
+      write(*,0021) NTP,N,NILI + NINL,NELI + NENL,FEX,F,FEAS,FCNT,
+     +     optm
+      close(75)
 
-! NON-EXECUTABLE STATEMENTS
+!     NON-EXECUTABLE STATEMENTS
 
- 0020  FORMAT(I4,1X,I4,1X,I4,1X,I4,5X,E15.8,1X,E15.8,1X,E15.8,1X,I15)
- 0021  FORMAT(I4,1X,I4,1X,I4,1X,I4,5X,E15.8,1X,E15.8,1X,E15.8,1X,I15,
-     +        1X,A1)
+ 0020 FORMAT(I4,1X,I4,1X,I4,1X,I4,5X,E15.8,1X,E15.8,1X,E15.8,1X,I15)
+ 0021 FORMAT(I4,1X,I4,1X,I4,1X,I4,5X,E15.8,1X,E15.8,1X,E15.8,1X,I15,
+     +     1X,A1)
 
-       END PROGRAM PRINCIPAL
+      END PROGRAM PRINCIPAL
 
 C     ******************************************************************
 C     ******************************************************************
@@ -270,7 +285,7 @@ C     COMMON BLOCKS
 
 C     LOCAL SCALARS
       integer i,m
-  
+      
       flag = 0
 
       lmem = .false.
