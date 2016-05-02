@@ -7,9 +7,6 @@ install:
 lib: cinterface.o trdf.o TRDF.o
 	ar crv libtrdf.a $^
 
-%.o: %.f tr_params.par
-	$(FC) $(FCC) -c $< -o $@ 
-
 trdf.o: trdf.f90
 	gfortran -c $< -o $@ 
 

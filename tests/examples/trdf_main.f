@@ -6,6 +6,7 @@ C     LOCAL ARRAYS
       LOGICAL ccoded(2),equatn(MMAX),linear(MMAX)
       double precision X(NMAX),XL(NMAX),XU(NMAX)
 
+C     USER-DEFINED SUBROUTINES
       external calobjf,calcon,caljac,calhc
 
 C     NUMBER OF VARIABLES
@@ -36,7 +37,7 @@ C     CODED SUBROUTINES FOR CONSTRAINTS' DERIVATIVES
 C     CALLS THE ALGORITHM
 
       CALL EASYTRDF(N,X,XL,XU,M,EQUATN,LINEAR,CCODED,CALOBJF,CALCON,
-     +     CALJAC,CALHC,F,FEAS,FCNT)
+     +              CALJAC,CALHC,F,FEAS,FCNT)
 
       END PROGRAM PRINCIPAL
 

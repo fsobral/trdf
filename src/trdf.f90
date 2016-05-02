@@ -10,7 +10,7 @@ module trdf
   integer, parameter :: HCNNZMAX = NMAX ** 2 * (1 + MMAX)
   integer, parameter :: MAXXEL = 3
   integer, parameter :: INN = 1000
-  logical, parameter :: OUTPUT = .true.
+  logical, parameter :: OUTPUT = .true. ! TODO: Add as an argument
 
   ! COMMON SCALARS
 
@@ -28,6 +28,7 @@ module trdf
   ! INTERFACES
 
   interface
+
      subroutine evalf(n,x,f,flag)
        ! SCALAR ARGUMENTS
        integer :: flag,n
