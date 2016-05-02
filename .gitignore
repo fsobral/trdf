@@ -7,3 +7,6 @@ objects/**
 
 # Algencan's files
 .silent
+
+# TRDF's files
+*.out
