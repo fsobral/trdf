@@ -196,12 +196,14 @@ contains
     RHOEND = REND
     GAMA = 0.1D0
 
+    call evalf(n,x,f,flag)
+
     !     ---------------------------
     !     Feasibility phase - Phase 0
     !     ---------------------------
 
     CALL SOLVER(N, XL, XU, X, M, EQUATN, LINEAR, CCODED, &
-         mevalf, mevalg, mevalh, evalc, evaljac, evalhc, &
+         mevalf, mevalg, mevalh, mevalc, mevaljac, mevalhc, &
          .true., XEPS, CNORM, FLAG)
 
     IF ( FLAG .NE. 0 ) GOTO 31
@@ -338,7 +340,8 @@ contains
 
     FEAS = 0.0D0
     do I = 1,M
-       CALL CALCON(N,X,I,C)
+       ! TODO: Test FLAG
+       CALL EVALC(N,X,I,C,FLAG)
        IF ( EQUATN(I) ) THEN
           FEAS = MAX(FEAS,ABS(C))
        ELSE
@@ -825,7 +828,7 @@ contains
     VQUAD=  F + Q(1)                                 
 
     CALL SOLVER(N, L, U, D, M, EQUATN, LINEAR, CCODED, &
-         mevalf, mevalg, mevalh, evalc, evaljac, evalhc, &
+         mevalf, mevalg, mevalh, mevalc, mevaljac, mevalhc, &
          .false., XEPS, CNORM, FLAG)
 
     IF ( FLAG .NE. 0 ) RETURN
@@ -1020,7 +1023,7 @@ contains
     end if
 
     ! TODO: add 'flag' to calobjf
-    call calobjf(n,x,f)
+    call evalf(n,x,f,flag)
 
     IC = IC + 1
 
@@ -1176,13 +1179,13 @@ contains
     ! LOCAL SCALARS
     integer :: i
 
-    flag = 0
+    flag = -1
 
     DO I=1, N
        XA(I) = X(I) + XOPT_A(I) + XBASE_A(I)
     END DO
 
-    call calcon(n,XA,ind,c)
+    call evalc(n,XA,ind,c,flag)
 
   end subroutine mevalc
 
@@ -1215,11 +1218,13 @@ contains
     ! LOCAL SCALARS
     integer :: i
 
+    flag = -1
+
     DO I=1, N
        XA(I) = X(I) + XOPT_A(I) + XBASE_A(I)
     END DO
 
-    call caljac(n,XA,ind,jcvar,jcval,jcnnz,lim,lmem,flag)
+    call evaljac(n,XA,ind,jcvar,jcval,jcnnz,lim,lmem,flag)
 
   end subroutine mevaljac
 
@@ -1252,11 +1257,13 @@ contains
     ! LOCAL SCALARS
     integer :: i
 
+    flag = -1
+
     DO i = 1,n
        XA(I) = X(I) + XOPT_A(I) + XBASE_A(I)
     END DO
 
-    call calhc(n,XA,ind,hcrow,hccol,hcval,hcnnz,lim,lmem,flag)
+    call evalhc(n,XA,ind,hcrow,hccol,hcval,hcnnz,lim,lmem,flag)
 
   end subroutine mevalhc
 

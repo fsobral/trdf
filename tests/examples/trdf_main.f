@@ -1,12 +1,12 @@
       PROGRAM PRINCIPAL
 
-      IMPLICIT REAL*8 (A-H,O-Z)
-
 #include "tr_params.par"
 
 C     LOCAL ARRAYS
       LOGICAL ccoded(2),equatn(MMAX),linear(MMAX)
-      DIMENSION X(NMAX),XL(NMAX),XU(NMAX)
+      double precision X(NMAX),XL(NMAX),XU(NMAX)
+
+      external calobjf,calcon,caljac,calhc
 
 C     NUMBER OF VARIABLES
       N= 3
@@ -43,16 +43,18 @@ C     CALLS THE ALGORITHM
 C     ******************************************************************
 C     ******************************************************************
 
-      subroutine calobjf(n,x,f)
+      subroutine calobjf(n,x,f,flag)
 
 !     SCALAR ARGUMENTS
-      integer n
+      integer flag,n
       double precision f
 
 !     ARRAY ARGUMENTS
       double precision x(n)
 
 !     Problem HS37 from Hock-Schittkowski collection
+
+      flag = 0
 
       f = - x(1) * x(2) * x(3)
 
@@ -61,10 +63,10 @@ C     ******************************************************************
 C     ******************************************************************
 C     ******************************************************************
 
-      subroutine calcon(n,x,ind,c)
+      subroutine calcon(n,x,ind,c,flag)
 
 !     SCALAR ARGUMENTS
-      integer ind,n
+      integer ind,flag,n
       double precision c
 
 !     ARRAY ARGUMENTS
@@ -72,15 +74,17 @@ C     ******************************************************************
 
 !     Problem HS37 from Hock-Schittkowski collection
 
+      flag = 0
+
       if ( ind .eq. 1 ) then
          c = - 72.D0 + x(1) + 2.D0 * x(2) + 2.D0 * x(3)
          return
-      end if
-      
-      if ( ind .eq. 2 ) then
+      elseif ( ind .eq. 2 ) then
          c = - x(1) - 2.D0 * x(2) - 2.D0 * x(3)
          return
       end if
+
+      flag = -1
 
       end subroutine calcon
 
