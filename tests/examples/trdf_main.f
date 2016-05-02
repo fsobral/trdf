@@ -1,6 +1,12 @@
       PROGRAM PRINCIPAL
 
+      IMPLICIT NONE
+
 #include "tr_params.par"
+
+C     LOCAL SCALARS
+      integer FCNT,I,M,N
+      double precision F,FEAS
 
 C     LOCAL ARRAYS
       LOGICAL ccoded(2),equatn(MMAX),linear(MMAX)
@@ -20,7 +26,7 @@ C     TYPE OF CONSTRAINTS
          equatn(i) = .false.
       end do
       
-      do i = i,m
+      do i = 1,M
          linear(i) = .true.
       end do
 

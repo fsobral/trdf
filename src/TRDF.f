@@ -1,7 +1,7 @@
       SUBROUTINE EASYTRDF(N,X,XL,XU,M,EQUATN,LINEAR,CCODED,EVALF,EVALC,
      +     EVALJAC,EVALHC,F,FEAS,FCNT)
 
-      use trdf
+      use trdf, only : trdfsub
 
       IMPLICIT NONE
 
@@ -108,7 +108,7 @@ C     FEAS - sup-norm of the infeasibility at the final point
 C
 C     FCNT - number of function evaluations
 
-      use trdf
+      use trdf, only : trdfsub
 
       IMPLICIT NONE
 
