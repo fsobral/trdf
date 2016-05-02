@@ -2,9 +2,11 @@
 #include <stdlib.h>
 #include <math.h>
 
-void c_calobjf(int n, double *x, double *f) {
+void c_calobjf(int n, double *x, double *f, int *flag) {
 
   // Problem HS37 from Hock-Schittkowski collection
+
+  *flag = 0;
 
   *f = - x[0] * x[1] * x[2];
 
@@ -12,25 +14,29 @@ void c_calobjf(int n, double *x, double *f) {
 
 }
 
-void c_calcon(int n, double *x, int ind, double *c) {
+void c_calcon(int n, double *x, int ind, double *c, int *flag) {
 
   // Problem HS37 from Hock-Schittkowski collection
+
+  *flag = 0;
 
   if ( ind == 0 ) {
 
     *c = - 72.0 + x[0] + 2.0 * x[1] + 2.0 * x[2];
 
-    return;
-
   }
-
-  if ( ind == 1 ) {
+  else if ( ind == 1 ) {
 
     *c = - x[0] - 2.0 * x[1] - 2.0 * x[2];
 
-    return;
+  }
+  else {
+
+    *flag = -1;
 
   }
+
+  return;
 
 }
 
@@ -41,7 +47,7 @@ void c_caljac(int n, double *x, int ind, int *jcvar, double *jcval,
 
   *flag = 0;
 
-  *lmem =  0;
+  *lmem = 0;
 
   if ( ind == 0 ) {
 
@@ -93,9 +99,9 @@ void c_calhc(int n, double *x, int ind, int *hcrow, int *hccol, double *hcval,
 int main()
 {
 
-  int i, fcnt, m, maxfevals, n, npt, numProb, numProbs, result;
+  int i, fcnt, m, n;
 
-  double f, feas, rbeg, rend, xeps, *x, *l, *u;
+  double f, feas, *x, *l, *u;
 
   _Bool *equatn, *linear, ccoded[2];
 
@@ -148,11 +154,12 @@ int main()
   // Coded subroutines for constraints' derivatives
 
   ccoded[0] = 1;
-  ccoded[1] = 0;
+  ccoded[1] = 1;
 
 
   // Calls the solver
-  easytrdf(n,x,l,u,m,equatn,linear,ccoded,&f,&feas,&fcnt);
+  easytrdf(n,x,l,u,m,equatn,linear,ccoded,&c_calobjf,&c_calcon,
+           &c_caljac,&c_calhc,&f,&feas,&fcnt);
 
   // Frees memory
   free(x);

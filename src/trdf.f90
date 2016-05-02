@@ -197,8 +197,6 @@ contains
     RHOEND = REND
     GAMA = 0.1D0
 
-    call evalf(n,x,f,flag)
-
     !     ---------------------------
     !     Feasibility phase - Phase 0
     !     ---------------------------

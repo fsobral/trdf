@@ -1,5 +1,16 @@
 module cinterface
 
+  ! Interface between user-defined C subroutines and the Fortran
+  ! subroutines.
+  !
+  !
+  ! TODO: A special attention should be given to the last 4 interface
+  ! subroutines. They use the special types defined in the
+  ! iso_c_binding module. Since they are actually Fortran subroutines,
+  ! the correct way of doing this is to use tradicional Fortran sizes
+  ! (or types) and converting them to the C types, as it is being done
+  ! with 'logical' types.
+
   use iso_c_binding, only : c_bool, c_char, c_double, c_int, &
        c_funptr, c_f_procpointer
 
@@ -14,10 +25,10 @@ module cinterface
 
        ! SCALAR ARGUMENTS
        integer(kind=c_int), value :: n
-       integer(kind=c_int) :: flag
-       real(kind=c_double) :: f
+       integer(kind=c_int)        :: flag
+       real(kind=c_double)        :: f
        ! ARRAY ARGUMENTS
-       real(kind=c_double) :: x(n)
+       real(kind=c_double)        :: x(n)
 
        intent(in ) :: n,x
        intent(out) :: f,flag
@@ -28,8 +39,8 @@ module cinterface
 
        ! SCALAR ARGUMENTS
        integer(kind=c_int), value :: ind,n
-       integer(kind=c_int) :: flag
-       real(kind=c_double) :: c
+       integer(kind=c_int)        :: flag
+       real(kind=c_double)        :: c
        ! ARRAY ARGUMENTS
        real(kind=c_double) :: x(n)
 
@@ -100,7 +111,7 @@ contains
     logical(kind=c_bool) :: ccoded(2),equatn(m),linear(m)
 
     ! EXTERNAL C SUBROUTINES
-    type(c_funptr) :: evalf_,evalc_,evaljac_,evalhc_
+    type(c_funptr), value :: evalf_,evalc_,evaljac_,evalhc_
 
     ! LOCAL ARRAYS
     logical :: ccoded_(2),equatn_(m),linear_(m)
@@ -120,10 +131,8 @@ contains
   END SUBROUTINE EASYCTRDF
 
   SUBROUTINE FULLCTRDF(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED, &
-       EVALF_,EVALC_,EVALJAC_,EVALHC_,MAXFCNT,RBEG,REND,XEPS,&
+       EVALF,EVALC_,EVALJAC_,EVALHC_,MAXFCNT,RBEG,REND,XEPS,&
        F,FEAS,FCNT) BIND(C, name="fulltrdf")
-
-!!$    use iso_c_binding, only : c_bool, c_double, c_int
 
     implicit none
 
@@ -138,12 +147,12 @@ contains
     logical(kind=c_bool) :: ccoded(2),equatn(m),linear(m)
 
     ! EXTERNAL C SUBROUTINES
-    type(c_funptr) :: evalf_,evalc_,evaljac_,evalhc_
+    type(c_funptr), value :: evalf,evalc_,evaljac_,evalhc_
 
     ! LOCAL ARRAYS
     logical :: ccoded_(2),equatn_(m),linear_(m)
 
-    call c_f_procpointer(evalf_,  c__evalf  )
+    call c_f_procpointer(evalf,  c__evalf  )
     call c_f_procpointer(evalc_,  c__evalc  )
     call c_f_procpointer(evaljac_,c__evaljac)
     call c_f_procpointer(evalhc_, c__evalhc )
@@ -152,8 +161,8 @@ contains
     equatn_(1:m) = logical( equatn(1:m) )
     linear_(1:m) = logical( linear(1:m) )
 
-    CALL FULLTRDF(N,NPT,X,XL,XU,M,EQUATN_,LINEAR_,CCODED_,EVALF_, &
-         EVALC_,EVALJAC_,EVALHC_,MAXFCNT,RBEG,REND,XEPS,F,FEAS,FCNT)
+    CALL FULLTRDF(N,NPT,X,XL,XU,M,EQUATN_,LINEAR_,CCODED_,CALOBJF, &
+         CALCON,CALJAC,CALHC,MAXFCNT,RBEG,REND,XEPS,F,FEAS,FCNT)
 
   END SUBROUTINE FULLCTRDF
 
@@ -170,16 +179,9 @@ contains
 
     ! ARRAY ARGUMENTS
     real(kind=c_double) :: x(n)
-
-!!$    ! INTERFACES
-!!$    interface
-!!$       subroutine c_calobjf(n,x,f) bind(C)
-!!$         import :: c_double, c_int
-!!$
-!!$         integer(kind=c_int), value :: n
-!!$         real(kind=c_double)        :: f,x(n)
-!!$       end subroutine c_calobjf
-!!$    end interface
+    
+    intent(in ) :: n,x
+    intent(out) :: f,flag
 
     call c__evalf(n,x,f,flag)
 
@@ -190,8 +192,6 @@ contains
 
   subroutine calcon(n,x,ind,c,flag)
 
-!!$    use iso_c_binding, only : c_double, c_int
-
     implicit none
 
     ! SCALAR ARGUMENTS
@@ -201,15 +201,8 @@ contains
     ! ARRAY ARGUMENTS
     real(kind=c_double) :: x(n)
 
-!!$    ! INTERFACES
-!!$    interface
-!!$       subroutine c_calcon(n,x,ind,c) bind(C)
-!!$         import :: c_double, c_int
-!!$
-!!$         integer(kind=c_int), value :: ind,n
-!!$         real(kind=c_double)        :: c,x(n)
-!!$       end subroutine c_calcon
-!!$    end interface
+    intent(in ) :: ind,n,x
+    intent(out) :: c,flag
 
     call c__evalc(n,x,ind - 1,c,flag)
 
@@ -220,29 +213,18 @@ contains
 
   subroutine caljac(n,x,ind,jcvar,jcval,jcnnz,lim,lmem,flag)
 
-!!$    use iso_c_binding, only : c_bool, c_double, c_int
-
     implicit none
 
     ! SCALAR ARGUMENTS
-    logical :: lmem
-    integer(kind=c_int) :: flag,ind,jcnnz,lim,n
-
+    integer(kind=c_int) :: ind,flag,jcnnz,lim,n
+    real(kind=c_double) :: f
+    logical             :: lmem
     ! ARRAY ARGUMENTS
     integer(kind=c_int) :: jcvar(lim)
-    real(kind=c_double) :: x(n),jcval(lim)
+    real(kind=c_double) :: jcval(lim),x(n)
 
-!!$    ! INTERFACES
-!!$    interface
-!!$       subroutine c_caljac(n,x,ind,jcvar,jcval,jcnnz,lim,lmem,flag) bind(C)
-!!$         import :: c_bool, c_double, c_int
-!!$
-!!$         integer(kind=c_int),  value :: n,ind,lim
-!!$         integer(kind=c_int)         :: flag,jcnnz,jcvar(lim)
-!!$         logical(kind=c_bool)        :: lmem
-!!$         real(kind=c_double)         :: x(n),jcval(lim)
-!!$       end subroutine c_caljac
-!!$    end interface
+    intent(in ) :: ind,lim,n,x
+    intent(out) :: flag,jcnnz,jcval,jcvar,lmem
 
     ! LOCAL SCALARS
     logical(kind=c_bool) :: lmem_
@@ -260,29 +242,19 @@ contains
 
   subroutine calhc(n,x,ind,hcrow,hccol,hcval,hcnnz,lim,lmem,flag)
 
-!!$    use iso_c_binding, only : c_bool, c_double, c_int
-
     implicit none
 
     ! SCALAR ARGUMENTS
-    logical :: lmem
-    integer(kind=c_int) :: flag,hcnnz,ind,lim,n
-
+    integer(kind=c_int) :: ind,lim,n
+    integer(kind=c_int) :: flag,hcnnz
+    real(kind=c_double) :: f
+    logical             :: lmem
     ! ARRAY ARGUMENTS
     integer(kind=c_int) :: hccol(lim),hcrow(lim)
     real(kind=c_double) :: hcval(lim),x(n)
 
-!!$    ! INTERFACES
-!!$    interface
-!!$       subroutine c_calhc(n,x,ind,hcrow,hccol,hcval,hcnnz,lim,lmem,flag) bind(C)
-!!$         import :: c_bool, c_double, c_int
-!!$
-!!$         integer(kind=c_int),  value :: n,ind,lim
-!!$         integer(kind=c_int)         :: flag,hcnnz,hccol(lim),hcrow(lim)
-!!$         logical(kind=c_bool)        :: lmem
-!!$         real(kind=c_double)         :: hcval(lim),x(n)
-!!$       end subroutine c_calhc
-!!$    end interface
+    intent(in ) :: ind,lim,n,x
+    intent(out) :: flag,hccol,hcrow,hcval,hcnnz,lmem
 
     ! LOCAL SCALARS
     logical(kind=c_bool) :: lmem_
