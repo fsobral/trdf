@@ -31,6 +31,7 @@ LOPTS = $(SLOPTS)
 export
 
 all: lib solver
+	mkdir -p $(BIN)
 
 # Generate the main TRDF library
 lib:

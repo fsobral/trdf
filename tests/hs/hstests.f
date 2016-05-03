@@ -175,14 +175,14 @@ C     CALLS THE ALGORITHM
 C     ******************************************************************
 C     ******************************************************************
 
-      subroutine calobjf(n,xx,f)
+      subroutine calobjf(n,xx,f,flag)
 
       implicit none
 
 #include "tr_params.par"
 
 !     SCALAR ARGUMENTS
-      integer n
+      integer flag,n
       double precision f
 
 !     ARRAY ARGUMENTS
@@ -201,6 +201,8 @@ C     ******************************************************************
 !     LOCAL SCALARS
       integer i
 
+      flag = 0
+
       do i = 1,n
          X(i) = xx(i)
       end do
@@ -214,14 +216,14 @@ C     ******************************************************************
 C     ******************************************************************
 C     ******************************************************************
 
-      subroutine calcon(nn,xx,ind,c)
+      subroutine calcon(nn,xx,ind,c,flag)
 
       implicit none
 
 #include "tr_params.par"
 
 !     SCALAR ARGUMENTS
-      integer ind,nn
+      integer flag,ind,nn
       double precision c
 
 !     ARRAY ARGUMENTS
@@ -238,6 +240,8 @@ C     COMMON BLOCKS
 
 C     LOCAL SCALARS
       integer i
+
+      flag = 0
 
       do i = 1,nn
          X(i) = xx(i)
