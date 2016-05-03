@@ -4,7 +4,7 @@ install:
 	mkdir -p $(LIB)
 	mv libtrdf.a $(LIB)
 
-lib: cinterface.o trdf.o TRDF.o
+lib: cinterface.o trdf.o
 	ar crv libtrdf.a $^
 
 trdf.o: trdf.f90

@@ -84,7 +84,8 @@ module trdf
 contains
 
   SUBROUTINE TRDFSUB(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,EVALF_,EVALC_, &
-       EVALJAC_,EVALHC_,MAXFCNT,RBEG,REND,XEPS,F,FEAS,FCNT)     
+       EVALJAC_,EVALHC_,MAXFCNT,RBEG,REND,XEPS,NF,ALPHA,FFILTER,HFILTER, &
+       F,FEAS,FCNT)     
 
     ! This subroutine is the implementation of the Derivative-free
     ! Trust-region algorithm for constrained optimization described in
@@ -145,18 +146,18 @@ contains
 !#include "tr_params.par"
 
     ! SCALAR ARGUMENTS
-    integer :: m,maxfcnt,N,NPT,FCNT
-    real(8) :: F,FEAS,RBEG,REND,XEPS
+    integer :: m,maxfcnt,N,NF,NPT,FCNT
+    real(8) :: ALPHA,F,FEAS,RBEG,REND,XEPS
 
     ! ARRAY ARGUMENTS
-    REAL(8) :: X(N),XL(N),XU(N)
+    REAL(8) :: FFILTER(NF),HFILTER(NF),X(N),XL(N),XU(N)
     logical :: ccoded(2),equatn(m),linear(m)
 
     ! EXTERNAL SUBROUTINES
     external :: evalf_,evalc_,evaljac_,evalhc_
 
     intent(in   ) :: m,maxfcnt,n,npt,rbeg,rend,xeps,xl,xu,ccoded, &
-                    equatn,linear
+                    equatn,linear,alpha,nf,ffilter,hfilter
     intent(out  ) :: f,feas,fcnt
     intent(inout) :: x
 
@@ -177,6 +178,7 @@ contains
          H(NPT+N+1,NPT+N+1),XNOVO(INN),SL(INN),SU(INN), VETOR1(NPT+N+1) 
 
     ! LOCAL SCALARS
+    logical :: forbidden
     integer :: i,it,j,k,kn,flag
     real(8) :: alfa,beta,c,cnorm,delta,distsq,dsq,fopt,gama, &
          mindelta,rho,rhobeg,rhoend,sigm,sum,tau,tempofinal,tempoinicial
@@ -295,13 +297,41 @@ contains
 
     CALL ATUALIZAQ(H, N, NPT, Q, DELTA, Y, X, F, IT) 
 
-23  IF (F  .LE.  FOPT + 0.1D0*VQUAD) THEN                 
-       FOPT = F
-       DO I=1, N
-          XNOVO(I) = X(I) 
-       END DO
-       GO TO 11  
+23  IF (F  .LE.  FOPT + 0.1D0*VQUAD) THEN
+
+       ! New criterium
+
+       FEAS = 0.0D0
+       do I = 1,M
+          CALL EVALC(N,X,I,C,FLAG)
+          IF ( FLAG .NE. 0 ) GOTO 31          
+          IF ( EQUATN(I) ) THEN
+             FEAS = MAX(FEAS,ABS(C))
+          ELSE
+             FEAS = MAX(FEAS,MAX(0.0D0,C))
+          END IF
+       end do
+
+       forbidden = .false.
+       do i = 1,nf
+          if ( FEAS .ge. (1.0D0 - ALPHA) * hfilter(i) .and. &
+               F .ge. ffilter(i) - ALPHA * hfilter(i) ) then
+             forbidden = .true.
+             exit
+          end if
+       end do
+
+       if ( .not. forbidden ) then
+          FOPT = F
+          DO I=1, N
+             XNOVO(I) = X(I) 
+          END DO
+          FLAG = 0
+          GO TO 31 
+       end if
+
     END IF
+
     IF (sigm .le. 0d0) go to 4
     IF ((RHO .LE. RHOEND) .OR. (IC == MAXIC)) GO TO 31
     KN=0
