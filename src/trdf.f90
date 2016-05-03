@@ -142,8 +142,6 @@ contains
 
     IMPLICIT NONE
 
-!#include "tr_params.par"
-
     ! SCALAR ARGUMENTS
     integer :: m,maxfcnt,N,NPT,FCNT
     real(8) :: F,FEAS,RBEG,REND,XEPS
@@ -159,18 +157,6 @@ contains
                     equatn,linear
     intent(out  ) :: f,feas,fcnt
     intent(inout) :: x
-
-!!$    ! COMMON SCALARS
-!!$    integer IC,MAXIC
-!!$    real(8) VQUAD,VQUAD_A
-!!$
-!!$    ! COMMON ARRAYS
-!!$    REAL(8) XBASE_A(INN), GOPT_A(INN), HQ_A(INN**2)
-!!$
-!!$    COMMON /VQUADA/ VQUAD_A, VQUAD
-!!$    COMMON /XBASEA/ XBASE_A 
-!!$    COMMON / NOMETESTE /  GOPT_A, HQ_A    
-!!$    COMMON /CONTA1/ IC, MAXIC 
 
     ! LOCAL ARRAYS
     REAL(8) :: FF(NPT),D(INN),Y(NPT,N),Q(1+N+N*(N+1)/2), &
@@ -354,12 +340,6 @@ contains
        call cpu_time(tempofinal)
        write(*,2000) F,FEAS,RHO,DELTA,IC,(tempofinal - tempoinicial), &
                      MIN(N,MAXXEL),(X(I), I=1,MIN(N,MAXXEL))
-       ! print '("Time = ",1PD23.8," seconds.")',tempofinal-tempoinicial
-       ! PRINT*, "NUMBER OF CALL OBJECTIVE FUNCTION =", IC 
-       ! DO I=1, N
-       ! PRINT*, "X(",I,")=", XNOVO(I) 
-       ! END DO
-       ! PRINT* , " MIN OBJECTIVE FUNCTION ="  , DMIN1(F, FOPT)  
     END IF
 
     ! FORMATS
@@ -411,19 +391,15 @@ contains
 
   ! ********************************  FIRST MODEL  *******************************
   SUBROUTINE  PRIMEIROMODELO1 (N,X,Q,H,NPT,DELTA,Y,FF,FLAG)
-!!$    IMPLICIT REAL*8 (A-H,O-Z)
-!#include "tr_params.par"
-    
+
+    implicit none
+
     ! SCALAR ARGUMENTS
     integer :: n,npt,flag
     real(8) :: delta
 
     ! ARRAY ARGUMENTS
     real(8) :: Q(*), FF(*), x(n), H(NPT+N+1,NPT+N+1),YY(N)
-
-!!$    DIMENSION :: GOPT_A(INN),HQ_A(INN**2),XBASE_A(INN)
-!!$    COMMON / NOMETESTE /  GOPT_A, HQ_A  
-!!$    COMMON /XBASEA/ XBASE_A
 
     ! NPT IS THE NUMBER INTERPOLATION POINTS.
     ! Y IS THE INTERPOLATION SET.
@@ -639,8 +615,8 @@ contains
   ! ******************************************************************
 
   SUBROUTINE SIGMA(H,N,NPT,Y,X,VETOR1,SIGM,ALFA,BETA,TAU,IT,DELTA)
-!!$    IMPLICIT REAL*8 (A-H,O-Z)
-!#include "tr_params.par"
+
+    implicit none
 
     ! SCALAR ARGUMENTS
     integer :: IT,N,NPT
@@ -648,9 +624,6 @@ contains
 
     ! ARRAY ARGUMENTS
     real(8) :: X(*), VETOR1(*), H(NPT+N+1,NPT+N+1), Y(NPT,N)
-
-!!$    DIMENSION :: XBASE_A(INN)
-!!$    COMMON /XBASEA/ XBASE_A
 
     ! WW STORAGE THE VETOR1 IN W TO PRODUCE ALFA BETA TAU HOW IN
     ! DEFINITION.  SIGMA = ALFA BETA + TAU**2. ALFA = ET^T H ET,
@@ -785,11 +758,8 @@ contains
 
   SUBROUTINE  SUBPROBLEMA(N, NPT, Q, DELTA, D, X, XL, XU, DSQ, M, &
        EQUATN, LINEAR, CCODED, XEPS, FLAG)
-!!$    IMPLICIT REAL*8 (A-H,O-Z)
-!#include "tr_params.par"
 
-!!$    REAL(8) :: XBASE_A(INN) 
-!!$    REAL(8) :: VQUAD_A, GRADD , VQUAD ,
+    implicit none
 
     ! SCALAR ARGUMENTS
     integer :: flag,m,N,NPT
@@ -798,9 +768,6 @@ contains
     ! ARRAY ARGUMENTS
     real(8) :: Q(*), X(*), XL(*),XU(*),D(INN)
     logical :: ccoded(2),equatn(m), linear(m)
-
-!!$    COMMON /XBASEA/ XBASE_A           
-!!$    COMMON /VQUADA/VQUAD_A, VQUAD   
 
     ! LOCAL SCALARS
     integer :: i
@@ -862,8 +829,8 @@ contains
   ! ****************************************************************** 
 
   SUBROUTINE  ATUALIZAQ(H, N, NPT, Q, DELTA, Y, X, F, IT)
-!!$    IMPLICIT REAL*8 (A-H,O-Z)
-!#include "tr_params.par"
+
+    implicit none
 
     ! SCALAR ARGUMENTS
     integer :: IT,N,NPT
@@ -871,11 +838,6 @@ contains
 
     ! ARRAY ARGUMENTS
     REAL(8) :: Q(*),X(*),Y(NPT,N),H(NPT+N+1,NPT+N+1)
-
-!!$    REAL(8) :: GOPT_A(INN), HQ_A(INN**2), XBASE_A(INN)  
-!!$    COMMON /VQUADA/ VQUAD_A, VQUAD 
-!!$    COMMON /XBASEA/ XBASE_A  
-!!$    COMMON / NOMETESTE /  GOPT_A, HQ_A    
 
     ! LOCAL SCALARS
     integer :: i,ii,j,jj,k
@@ -940,8 +902,6 @@ contains
 
     implicit none
 
-!#include "tr_params.par"
-
     ! multiplica vetor por vetor
 
     ! SCALAR ARGUMENTS
@@ -968,8 +928,6 @@ contains
   subroutine  mmv(HQ, S,n, v)
 
     implicit none
-
-!#include "tr_params.par"
 
     ! multiplica matriz simetrica (dada como vetor) por vetor
     ! estava com hs, e troquei para hss para nao atualizar hs desnec
@@ -1001,17 +959,14 @@ contains
 
   subroutine calfun(n,x,f,flag)
 
+    implicit none
+
     ! SCALAR ARGUMENTS
     integer :: flag,n
     real(8) :: f
 
     ! ARRAY ARGUMENTS
     real(8) :: x(n)
-
-!!$    ! COMMON BLOCKS
-!!$    integer :: IC,MAXIC
-!!$
-!!$    common /CONTA1/ IC, MAXIC
 
     flag = 0
 
@@ -1032,19 +987,12 @@ contains
 
     implicit none
 
-!#include "tr_params.par"
-
     ! SCALAR ARGUMENTS
     integer :: flag,n
     real(8) :: f
 
     ! ARRAY ARGUMENTS
     real(8) :: x(n)
-
-!!$    ! COMMON BLOCKS
-!!$    real(8) :: gopt_a(NMAX),hq_a(NMAX * NMAX)
-!!$
-!!$    common /nometeste/ gopt_a,hq_a
 
     ! LOCAL ARRAYS
     real(8) :: hqd(n)
@@ -1072,18 +1020,11 @@ contains
 
     implicit none
 
-!#include "tr_params.par"
-
     ! SCALAR ARGUMENTS
     integer :: flag,n
 
     ! ARRAY ARGUMENTS
     real(8) :: g(n),x(n)
-
-!!$    ! COMMON BLOCKS
-!!$    real(8) :: gopt_a(NMAX),hq_a(NMAX * NMAX)
-!!$
-!!$    common /nometeste/ gopt_a,hq_a
 
     ! LOCAL ARRAYS
     real(8) :: hqd(n)
@@ -1108,8 +1049,6 @@ contains
 
     implicit none
 
-!#include "tr_params.par"
-
     ! SCALAR ARGUMENTS
     logical :: lmem
     integer :: flag,n,hnnz,lim
@@ -1117,11 +1056,6 @@ contains
     ! ARRAY ARGUMENTS
     integer :: hcol(lim),hrow(lim)
     real(8) :: hval(lim),x(n)
-
-!!$    !     COMMON BLOCKS
-!!$    real(8) :: gopt_a(NMAX),hq_a(NMAX * NMAX)
-!!$
-!!$    common /nometeste/ gopt_a,hq_a
 
     ! LOCAL SCALARS
     integer :: i,iii,j
@@ -1157,20 +1091,12 @@ contains
 
     implicit none
 
-!#include "tr_params.par"
-
     ! SCALAR ARGUMENTS
     integer :: ind,flag,n
     real(8) :: c
 
     ! ARRAY ARGUMENTS
     real(8) :: x(n)
-
-!!$    ! COMMON BLOCKS
-!!$    real(8) :: XBASE_A(NMAX),XOPT_A(NMAX)
-!!$
-!!$    COMMON /XBASEA/ XBASE_A
-!!$    COMMON /XOPTA/ XOPT_A
 
     ! LOCAL ARRAYS
     real(8) :: XA(NMAX)
@@ -1195,8 +1121,6 @@ contains
 
     implicit none
 
-!#include "tr_params.par"
-
     ! SCALAR ARGUMENTS
     logical :: lmem
     integer :: flag,ind,jcnnz,lim,n
@@ -1204,12 +1128,6 @@ contains
     ! ARRAY ARGUMENTS
     integer :: jcvar(lim)
     real(8) :: x(n),jcval(lim)
-
-!!$    ! COMMON BLOCKS
-!!$    real(8) :: XBASE_A(NMAX),XOPT_A(NMAX)
-!!$
-!!$    COMMON /XBASEA/ XBASE_A
-!!$    COMMON /XOPTA/ XOPT_A
 
     ! LOCAL ARRAYS
     real(8) :: XA(NMAX)
@@ -1234,8 +1152,6 @@ contains
 
     implicit none
 
-!#include "tr_params.par"
-
     ! SCALAR ARGUMENTS
     logical :: lmem
     integer :: flag,hcnnz,ind,lim,n
@@ -1243,12 +1159,6 @@ contains
     ! ARRAY ARGUMENTS
     integer :: hccol(lim),hcrow(lim)
     real(8) :: hcval(lim),x(n)
-
-!!$    ! COMMON BLOCKS
-!!$    real(8) :: XBASE_A(NMAX),XOPT_A(NMAX)
-!!$
-!!$    COMMON /XBASEA/ XBASE_A
-!!$    COMMON /XOPTA/ XOPT_A
 
     ! LOCAL ARRAYS
     real(8) :: XA(NMAX)
