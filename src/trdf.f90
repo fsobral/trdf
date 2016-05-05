@@ -23,7 +23,7 @@ module trdf
 
   ! COMMON SUBROUTINES
 
-  pointer :: evalf,evalc,evaljac,evalhc
+  pointer :: evalf,evallc,evalljac,evalhc,evalc
 
   ! INTERFACES
 
@@ -40,6 +40,17 @@ module trdf
        intent(out) :: f,flag
      end subroutine evalf
 
+     subroutine evallc(n,x,ind,c,flag)
+       ! SCALAR ARGUMENTS
+       integer :: flag,ind,n
+       real(8) :: c
+       ! ARRAY ARGUMENTS
+       real(8) :: x(n)
+
+       intent(in ) :: ind,n,x
+       intent(out) :: c,flag
+     end subroutine evallc
+
      subroutine evalc(n,x,ind,c,flag)
        ! SCALAR ARGUMENTS
        integer :: flag,ind,n
@@ -51,7 +62,7 @@ module trdf
        intent(out) :: c,flag
      end subroutine evalc
 
-     subroutine evaljac(n,x,ind,jcvar,jcval,jcnnz,lim,lmem,flag)
+     subroutine evalljac(n,x,ind,jcvar,jcval,jcnnz,lim,lmem,flag)
        ! SCALAR ARGUMENTS
        integer :: flag,ind,jcnnz,lim,n
        logical :: lmem
@@ -61,7 +72,7 @@ module trdf
 
        intent(in ) :: ind,lim,n,x
        intent(out) :: flag,jcnnz,jcval,jcvar,lmem
-     end subroutine evaljac
+     end subroutine evalljac
 
       subroutine evalhc(n,x,ind,hcrow,hccol,hcval,hcnnz,lim,lmem,flag)
         ! SCALAR ARGUMENTS
@@ -83,9 +94,9 @@ module trdf
 
 contains
 
-  SUBROUTINE TRDFSUB(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,EVALF_,EVALC_, &
-       EVALJAC_,EVALHC_,MAXFCNT,RBEG,REND,XEPS,NF,ALPHA,FFILTER,HFILTER, &
-       F,FEAS,FCNT)     
+  SUBROUTINE TRDFSUB(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,EVALF_,EVALLC_, &
+       EVALLJAC_,EVALHC_,EVALC_,MAXFCNT,RBEG,REND,XEPS,NF,ALPHA,FFILTER,HFILTER, &
+       EPSFEAS,F,FEAS,FCNT)     
 
     ! This subroutine is the implementation of the Derivative-free
     ! Trust-region algorithm for constrained optimization described in
@@ -145,36 +156,39 @@ contains
 
     ! SCALAR ARGUMENTS
     integer :: m,maxfcnt,N,NF,NPT,FCNT
-    real(8) :: ALPHA,F,FEAS,RBEG,REND,XEPS
+    real(8) :: ALPHA,F,EPSFEAS,FEAS,RBEG,REND,XEPS
 
     ! ARRAY ARGUMENTS
     REAL(8) :: FFILTER(NF),HFILTER(NF),X(N),XL(N),XU(N)
     logical :: ccoded(2),equatn(m),linear(m)
 
     ! EXTERNAL SUBROUTINES
-    external :: evalf_,evalc_,evaljac_,evalhc_
+    external :: evalf_,evallc_,evalljac_,evalhc_,evalc_
 
     intent(in   ) :: m,maxfcnt,n,npt,rbeg,rend,xeps,xl,xu,ccoded, &
-                    equatn,linear,alpha,nf,ffilter,hfilter
+                    equatn,linear,alpha,nf,ffilter,hfilter,epsfeas
     intent(out  ) :: f,feas,fcnt
     intent(inout) :: x
 
     ! LOCAL ARRAYS
     REAL(8) :: FF(NPT),D(INN),Y(NPT,N),Q(1+N+N*(N+1)/2), &
-         H(NPT+N+1,NPT+N+1),XNOVO(INN),SL(INN),SU(INN), VETOR1(NPT+N+1) 
+         H(NPT+N+1,NPT+N+1),XNOVO(INN),SL(INN),SU(INN), VETOR1(NPT+N+1), &
+         Z(INN)
 
     ! LOCAL SCALARS
     logical :: forbidden
     integer :: i,it,j,k,kn,flag
     real(8) :: alfa,beta,c,cnorm,delta,distsq,dsq,fopt,gama, &
-         mindelta,rho,rhobeg,rhoend,sigm,sum,tau,tempofinal,tempoinicial
+         mindelta,rho,rhobeg,rhoend,sigm,sum,tau,tempofinal, &
+         tempoinicial,fz,distz
 
     IF ( OUTPUT ) WRITE(*,3000)
 
     evalf   => evalf_
-    evalc   => evalc_
-    evaljac => evaljac_
+    evallc   => evallc_
+    evalljac => evalljac_
     evalhc  => evalhc_
+    evalc   => evalc_
 
     F = 1.0D300
     IC = 0
@@ -188,14 +202,14 @@ contains
     !     ---------------------------
     !     Feasibility phase - Phase 0
     !     ---------------------------
-
-    CALL SOLVER(N, XL, XU, X, M, EQUATN, LINEAR, CCODED, &
-         mevalf, mevalg, mevalh, mevalc, mevaljac, mevalhc, &
-         .true., XEPS, CNORM, FLAG)
-
-    IF ( FLAG .NE. 0 ) GOTO 31
-    IF (OUTPUT) WRITE(*,1000) CNORM,X
-
+!!$
+!!$    CALL SOLVER(N, XL, XU, X, M, EQUATN, LINEAR, CCODED, &
+!!$         mevalf, mevalg, mevalh, mevalc, mevaljac, mevalhc, &
+!!$         .true., XEPS, CNORM, FLAG)
+!!$
+!!$    IF ( FLAG .NE. 0 ) GOTO 31
+!!$    IF (OUTPUT) WRITE(*,1000) CNORM,X
+!!$
     !     ------------------------
     !     End of feasibility phase
     !     ------------------------
@@ -203,9 +217,13 @@ contains
     IF (OUTPUT) WRITE(*,1001)
 
     DO I=1,N
+       Z(I) = X(I)
        XNOVO(I) = X(I)
        XBASE_A(I)= X(I)            
     END DO
+
+!!$    ! Remove this!!!
+!!$    CALL CALFUN(N,Z,FZ,FLAG)
 
     GO TO 5
 4   CONTINUE     
@@ -230,8 +248,28 @@ contains
     IF ( OUTPUT ) WRITE(*,1003) RHO,DELTA,Q(1),FOPT,IC
     IF ( FLAG .NE. 0 ) GOTO 31
 
-    DISTSQ=(10.D0*RHO)**2                 
-    IF (SQRT(DSQ) .LT. 0.5D0*RHO) THEN 
+    DISTZ = 0.0D0
+    DO I = 1,N
+       DISTZ = DISTZ + (X(I) - Z(I)) ** 2.0D0
+    END DO
+
+!!$    DISTSQ=(10.D0*RHO)**2                 
+!!$    IF (SQRT(DSQ) .LT. 0.5D0*RHO) THEN 
+    IF ( SQRT(DISTZ) .LT. 0.5D0*RHO) THEN 
+       ! New criterium
+
+       FEAS = 0.0D0
+       do I = 1,M
+          CALL EVALC(N,Z,I,C,FLAG)
+          IF ( FLAG .NE. 0 ) GOTO 31          
+          IF ( EQUATN(I) ) THEN
+             FEAS = MAX(FEAS,ABS(C))
+          ELSE
+             FEAS = MAX(FEAS,MAX(0.0D0,C))
+          END IF
+       end do
+
+       IF (RHO .LE. RHOEND .AND. FEAS .LE. EPSFEAS) GO TO 31
 
        KN=0
        DO   K=1,NPT
@@ -245,7 +283,6 @@ contains
           END IF
        END DO
 
-       IF (RHO .LE. RHOEND) GO TO 31
        IF (KN .EQ. 0)   RHO = GAMA * RHO              
 
        GO TO 4
@@ -324,7 +361,8 @@ contains
     DO   K=1,NPT
        SUM=0D0
        DO   J=1,N
-          SUM=SUM+(Y(K,J)-X(J))**2
+!!$          SUM=SUM+(Y(K,J)-X(J))**2
+          SUM=SUM+(Y(K,J)-Z(J))**2
        END DO
        IF (SUM .GT. DISTSQ) THEN
           KN=K
@@ -1140,7 +1178,7 @@ contains
        XA(I) = X(I) + XOPT_A(I) + XBASE_A(I)
     END DO
 
-    call evalc(n,XA,ind,c,flag)
+    call evallc(n,XA,ind,c,flag)
 
   end subroutine mevalc
 
@@ -1171,7 +1209,7 @@ contains
        XA(I) = X(I) + XOPT_A(I) + XBASE_A(I)
     END DO
 
-    call evaljac(n,XA,ind,jcvar,jcval,jcnnz,lim,lmem,flag)
+    call evalljac(n,XA,ind,jcvar,jcval,jcnnz,lim,lmem,flag)
 
   end subroutine mevaljac
 
