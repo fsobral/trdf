@@ -33,6 +33,10 @@ export
 all: lib solver
 	mkdir -p $(BIN)
 
+fulllib: lib solver
+	mkdir -p $(LIB)
+	ar crv $(LIB)/libtrdf.a $(SRC)/*.o $(SOL)/*.o
+
 # Generate the main TRDF library
 lib:
 	$(MAKE) -C $(SRC) all install
@@ -63,4 +67,4 @@ clean:
 	rm -vf $(LIB)/* $(BIN)/* $(OBJ)/*
 	$(foreach i,$(SRC) $(TES),$(MAKE) -C $(i) clean;)
 
-.PHONY: lib all clean
+.PHONY: fulllib lib all clean
