@@ -10,7 +10,6 @@ module trdf
   integer, parameter :: HCNNZMAX = NMAX ** 2 * (1 + MMAX)
   integer, parameter :: MAXXEL = 3
   integer, parameter :: INN = 1000
-  logical, parameter :: OUTPUT = .true. ! TODO: Add as an argument
 
   ! COMMON SCALARS
 
@@ -95,8 +94,8 @@ module trdf
 contains
 
   SUBROUTINE TRDFSUB(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,EVALF_,EVALLC_, &
-       EVALLJAC_,EVALHC_,EVALC_,MAXFCNT,RBEG,REND,XEPS,NF,ALPHA,FFILTER,HFILTER, &
-       EPSFEAS,F,FEAS,FCNT)     
+       EVALLJAC_,EVALHC_,EVALC_,MAXFCNT,RBEG,REND,XEPS,OUTPUT,NF,ALPHA,   &
+       FFILTER,HFILTER,EPSFEAS,F,FEAS,FCNT)     
 
     ! This subroutine is the implementation of the Derivative-free
     ! Trust-region algorithm for constrained optimization described in
@@ -132,6 +131,14 @@ contains
     !             Jacobian (CCODED(1)) and the Hessian (CCODED(2)) of
     !             the constraints are provided by the user
     !
+    ! EVALF_ - the user-defined objective function
+    !
+    ! EVALC_ - the user-defined constraints
+    !
+    ! EVALJAC_ - the user-defined Jacobian of the constraints
+    !
+    ! EVALHC_ - the user defined Hessian of the constraints
+    !
     ! MAXFCNT - maximum number of function evaluations
     !
     ! RBEG - initial value for the trust region radius and interpolation
@@ -141,6 +148,8 @@ contains
     !
     ! XEPS - feasibility/optimality tolerance for solving the subproblems
     !
+    ! OUTPUT - a logical variable indicating if the method has or has not
+    !          to display information
     !
     ! The OUTPUT parameters are
     !
@@ -155,6 +164,7 @@ contains
     IMPLICIT NONE
 
     ! SCALAR ARGUMENTS
+    logical :: OUTPUT
     integer :: m,maxfcnt,N,NF,NPT,FCNT
     real(8) :: ALPHA,F,EPSFEAS,FEAS,RBEG,REND,XEPS
 

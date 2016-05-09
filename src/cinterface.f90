@@ -132,15 +132,16 @@ contains
 
   SUBROUTINE FULLCTRDF(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED, &
        EVALF,EVALC_,EVALJAC_,EVALHC_,MAXFCNT,RBEG,REND,XEPS,&
-       F,FEAS,FCNT) BIND(C, name="fulltrdf")
+       OUTPUT,F,FEAS,FCNT) BIND(C, name="fulltrdf")
 
     implicit none
 
     ! SCALAR ARGUMENTS
-    integer(kind=c_int), value :: m,maxfcnt,n,npt
-    integer(kind=c_int)        :: fcnt
-    real(kind=c_double), value :: rbeg,rend,xeps
-    real(kind=c_double)        :: f,feas
+    logical(kind=c_bool), value :: output
+    integer(kind=c_int),  value :: m,maxfcnt,n,npt
+    integer(kind=c_int)         :: fcnt
+    real(kind=c_double),  value :: rbeg,rend,xeps
+    real(kind=c_double)         :: f,feas
 
     ! ARRAY ARGUMENTS
     real(kind=c_double) :: X(N),XL(N),XU(N)
@@ -148,6 +149,9 @@ contains
 
     ! EXTERNAL C SUBROUTINES
     type(c_funptr), value :: evalf,evalc_,evaljac_,evalhc_
+
+    ! LOCAL SCALARS
+    logical :: output_
 
     ! LOCAL ARRAYS
     logical :: ccoded_(2),equatn_(m),linear_(m)
@@ -161,8 +165,11 @@ contains
     equatn_(1:m) = logical( equatn(1:m) )
     linear_(1:m) = logical( linear(1:m) )
 
+    output_ = logical( output )
+
     CALL FULLTRDF(N,NPT,X,XL,XU,M,EQUATN_,LINEAR_,CCODED_,CALOBJF, &
-         CALCON,CALJAC,CALHC,MAXFCNT,RBEG,REND,XEPS,F,FEAS,FCNT)
+         CALCON,CALJAC,CALHC,MAXFCNT,RBEG,REND,XEPS,OUTPUT,F,FEAS, &
+         FCNT)
 
   END SUBROUTINE FULLCTRDF
 
