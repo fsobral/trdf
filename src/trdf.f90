@@ -253,7 +253,7 @@ contains
        DISTZ = DISTZ + (X(I) - Z(I)) ** 2.0D0
     END DO
 
-!!$    DISTSQ=(10.D0*RHO)**2                 
+    DISTSQ=(10.D0*RHO)**2                 
 !!$    IF (SQRT(DSQ) .LT. 0.5D0*RHO) THEN 
     IF ( SQRT(DISTZ) .LT. 0.5D0*RHO) THEN 
        ! New criterium
@@ -275,7 +275,8 @@ contains
        DO   K=1,NPT
           SUM=0D0
           DO   J=1,N
-             SUM=SUM+(Y(K,J)-X(J))**2
+             SUM=SUM+(Y(K,J)-Z(J))**2
+!!$             SUM=SUM+(Y(K,J)-X(J))**2
           END DO
           IF (SUM .GT. DISTSQ) THEN
              KN=K
@@ -356,7 +357,8 @@ contains
     END IF
 
     IF (sigm .le. 0d0) go to 4
-    IF ((RHO .LE. RHOEND) .OR. (IC == MAXIC)) GO TO 31
+    IF (IC == MAXIC) GO TO 31
+!!$    IF ((RHO .LE. RHOEND) .OR. (IC == MAXIC)) GO TO 31
     KN=0
     DO   K=1,NPT
        SUM=0D0
