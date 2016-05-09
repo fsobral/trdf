@@ -48,6 +48,7 @@ C     COMMON BLOCKS
 C     LOCAL SCALARS
 
       character OPTM
+      logical OUTPUT
       integer FCNT,MAXFCNT
       double precision C,F,FEAS,RBEG,REND,XEPS
 
@@ -148,8 +149,11 @@ C     CALLS THE ALGORITHM
       REND = 1.0D-4
       XEPS = 1.0D-8
 
+      OUTPUT = .false.
+
       CALL FULLTRDF(NN,NPT,XX,L,U,M,EQUATN,LINEAR,CCODED,CALOBJF,CALCON,
-     +              CALJAC,CALHC,MAXFCNT,RBEG,REND,XEPS,F,FEAS,FCNT)
+     +              CALJAC,CALHC,MAXFCNT,RBEG,REND,XEPS,OUTPUT,F,FEAS,
+     +              FCNT)
 
       reldiff = (f - FEX) / max(1.0D0,abs(f),abs(FEX))
 
