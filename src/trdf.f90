@@ -209,6 +209,8 @@ contains
     RHOEND = REND
     GAMA = 0.1D0
 
+    IT = 1
+
     !     ---------------------------
     !     Feasibility phase - Phase 0
     !     ---------------------------
@@ -314,7 +316,7 @@ contains
     ! CHOOSE WHO LEAVE Y CALCULATING THE VALUE OF SIGMA. THE VARIABLE
     ! IT' IS CHOOSEN FOR DEFINE WHO LEAVE.
 
-    CALL SIGMA(H,N,NPT,Y,X,VETOR1,SIGM,ALFA,BETA,TAU,IT,DELTA)         
+    CALL SIGMA(H,N,NPT,Y,X,VETOR1,SIGM,ALFA,BETA,TAU,IT,DELTA)    
 
     ! IF ANY REDUCTION IN F, PUT X IN INTERPOLATION SET.
     IF (F .LE. FOPT) THEN  
@@ -355,11 +357,17 @@ contains
           end if
        end do
 
-       if ( .not. forbidden ) then
+       ! Faz sentido isso?
           FOPT = F
           DO I=1, N
              XNOVO(I) = X(I) 
           END DO
+
+       if ( .not. forbidden ) then
+!!$          FOPT = F
+!!$          DO I=1, N
+!!$             XNOVO(I) = X(I) 
+!!$          END DO
           FLAG = 0
           GO TO 31 
        end if
@@ -771,6 +779,7 @@ contains
           AUXILIAR(3) = TAU
           AUXILIAR(4) = SIGM                           
        END IF
+       write(*,*)IT,ITT,IAUXILIAR
        IT = IT + 1
     END DO
 
