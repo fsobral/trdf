@@ -187,7 +187,7 @@ contains
 
     ! LOCAL SCALARS
     logical :: forbidden
-    integer :: i,it,j,k,kn,flag
+    integer :: i,it,j,k,kn,flag,previt
     real(8) :: alfa,beta,c,cnorm,delta,distsq,dsq,fopt,gama, &
          mindelta,rho,rhobeg,rhoend,sigm,sum,tau,tempofinal, &
          tempoinicial,fz,distz
@@ -316,6 +316,7 @@ contains
     ! CHOOSE WHO LEAVE Y CALCULATING THE VALUE OF SIGMA. THE VARIABLE
     ! IT' IS CHOOSEN FOR DEFINE WHO LEAVE.
 
+    PREVIT = IT
     CALL SIGMA(H,N,NPT,Y,X,VETOR1,SIGM,ALFA,BETA,TAU,IT,DELTA)    
 
     ! IF ANY REDUCTION IN F, PUT X IN INTERPOLATION SET.
@@ -325,6 +326,7 @@ contains
           Y(IT,I) = X(I) 
        END DO
     ELSE
+       IT = PREVIT
        GO TO 23
     END IF
 
@@ -357,17 +359,11 @@ contains
           end if
        end do
 
-       ! Faz sentido isso?
+       if ( .not. forbidden ) then
           FOPT = F
           DO I=1, N
              XNOVO(I) = X(I) 
           END DO
-
-       if ( .not. forbidden ) then
-!!$          FOPT = F
-!!$          DO I=1, N
-!!$             XNOVO(I) = X(I) 
-!!$          END DO
           FLAG = 0
           GO TO 31 
        end if
