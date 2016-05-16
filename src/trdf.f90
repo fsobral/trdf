@@ -94,8 +94,8 @@ module trdf
 contains
 
   SUBROUTINE TRDFSUB(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,EVALF_,EVALLC_, &
-       EVALLJAC_,EVALHC_,EVALC_,MAXFCNT,RBEG,REND,XEPS,OUTPUT,NF,ALPHA,   &
-       FFILTER,HFILTER,EPSFEAS,F,FEAS,FCNT)     
+       EVALLJAC_,EVALHC_,EVALC_,MAXFCNT,RBEG,REND,XEPS,OUTPUT,NF,  &
+       ALPHA,FFILTER,HFILTER,DELTA,EPSFEAS,F,FEAS,FCNT,RHO)
 
     ! This subroutine is the implementation of the Derivative-free
     ! Trust-region algorithm for constrained optimization described in
@@ -166,7 +166,7 @@ contains
     ! SCALAR ARGUMENTS
     logical :: OUTPUT
     integer :: m,maxfcnt,N,NF,NPT,FCNT
-    real(8) :: ALPHA,F,EPSFEAS,FEAS,RBEG,REND,XEPS
+    real(8) :: ALPHA,F,DELTA,EPSFEAS,FEAS,RBEG,REND,RHO,XEPS
 
     ! ARRAY ARGUMENTS
     REAL(8) :: FFILTER(NF),HFILTER(NF),X(N),XL(N),XU(N)
@@ -177,8 +177,8 @@ contains
 
     intent(in   ) :: m,maxfcnt,n,npt,rbeg,rend,xeps,xl,xu,ccoded, &
                     equatn,linear,alpha,nf,ffilter,hfilter,epsfeas
-    intent(out  ) :: f,feas,fcnt
-    intent(inout) :: x
+    intent(out  ) :: f,feas,fcnt,rho
+    intent(inout) :: delta,x
 
     ! LOCAL ARRAYS
     REAL(8) :: FF(NPT),D(INN),Y(NPT,N),Q(1+N+N*(N+1)/2), &
@@ -188,8 +188,8 @@ contains
     ! LOCAL SCALARS
     logical :: forbidden
     integer :: i,it,j,k,kn,flag,previt
-    real(8) :: alfa,beta,c,cnorm,delta,distsq,dsq,fopt,gama, &
-         mindelta,rho,rhobeg,rhoend,sigm,sum,tau,tempofinal, &
+    real(8) :: alfa,beta,c,cnorm,distsq,dsq,fopt,gama, &
+         mindelta,rhobeg,rhoend,sigm,sum,tau,tempofinal, &
          tempoinicial,fz,distz
 
     IF ( OUTPUT ) WRITE(*,3000)
@@ -200,28 +200,17 @@ contains
     evalhc  => evalhc_
     evalc   => evalc_
 
-    F = 1.0D300
-    IC = 0
-    MAXIC = maxfcnt ! MAXIMUM NUMBER OF FUNCTION EVALUATIONS
+    F      = 1.0D+300
+    IC     = 0
+    MAXIC  = maxfcnt ! MAXIMUM NUMBER OF FUNCTION EVALUATIONS
     RHOBEG = RBEG
-    RHO = RHOBEG
-    DELTA = RHO
     RHOEND = REND
-    GAMA = 0.1D0
+    RHO    = RHOBEG
+    DELTA  = MAX(DELTA, RHO) ! Correcting delta if necessary
+    GAMA   = 0.1D0
 
     IT = 1
 
-    !     ---------------------------
-    !     Feasibility phase - Phase 0
-    !     ---------------------------
-!!$
-!!$    CALL SOLVER(N, XL, XU, X, M, EQUATN, LINEAR, CCODED, &
-!!$         mevalf, mevalg, mevalh, mevalc, mevaljac, mevalhc, &
-!!$         .true., XEPS, CNORM, FLAG)
-!!$
-!!$    IF ( FLAG .NE. 0 ) GOTO 31
-!!$    IF (OUTPUT) WRITE(*,1000) CNORM,X
-!!$
     !     ------------------------
     !     End of feasibility phase
     !     ------------------------
@@ -233,9 +222,6 @@ contains
        XNOVO(I) = X(I)
        XBASE_A(I)= X(I)            
     END DO
-
-!!$    ! Remove this!!!
-!!$    CALL CALFUN(N,Z,FZ,FLAG)
 
     GO TO 5
 4   CONTINUE     
@@ -305,14 +291,14 @@ contains
 
     IF ( FLAG .NE. 0 ) GOTO 31
 
-    IF ((F-FOPT) .GT. (0.1D0*VQUAD)) THEN
-       DELTA= 0.5D0*DELTA                 
-    ELSE IF ((F-FOPT) .GE. (0.7D0*VQUAD)) THEN
-       DELTA=DELTA  
-    ELSE
-       DELTA =   DELTA + DELTA  
-    END IF
-
+!!$    IF ((F-FOPT) .GT. (0.1D0*VQUAD)) THEN
+!!$       DELTA= 0.5D0*DELTA                 
+!!$    ELSE IF ((F-FOPT) .GE. (0.7D0*VQUAD)) THEN
+!!$       DELTA=DELTA  
+!!$    ELSE
+!!$       DELTA =   DELTA + DELTA  
+!!$    END IF
+!!$
     ! CHOOSE WHO LEAVE Y CALCULATING THE VALUE OF SIGMA. THE VARIABLE
     ! IT' IS CHOOSEN FOR DEFINE WHO LEAVE.
 
@@ -364,13 +350,21 @@ contains
           DO I=1, N
              XNOVO(I) = X(I) 
           END DO
+          IF ((F-FOPT) .GE. (0.7D0*VQUAD)) THEN
+             DELTA = DELTA  
+          ELSE
+             DELTA = DELTA + DELTA  
+          END IF
           FLAG = 0
           GO TO 31 
        end if
 
     END IF
 
-    IF (sigm .le. 0d0) go to 4
+    IF (sigm .le. 0d0) THEN
+       DELTA = 5.0D-1 * DELTA
+       GOTO 4
+    END IF
     IF (IC == MAXIC) GO TO 31
 !!$    IF ((RHO .LE. RHOEND) .OR. (IC == MAXIC)) GO TO 31
     KN=0
@@ -386,7 +380,10 @@ contains
        END IF
     END DO
 
-    IF (KN .GT. 0)  GOTO 4       
+    IF (KN .GT. 0) THEN
+       DELTA = 5.0D-1 * DELTA
+       GOTO 4
+    END IF
 
     DELTA = RHO  
     RHO = GAMA * RHO      
