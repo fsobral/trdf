@@ -344,6 +344,8 @@ contains
 
        if ( .not. forbidden ) then
           IF ((F-FOPT) .GE. (0.7D0*VQUAD)) THEN
+!!$          IF ((F-FOPT) .GE. (0.7D0*VQUAD) .OR. &
+!!$              DISTZ .LT. DELTA) THEN
              DELTA = DELTA  
           ELSE
              DELTA = DELTA + DELTA  
