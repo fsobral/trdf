@@ -211,10 +211,6 @@ contains
 
     IT = 1
 
-    !     ------------------------
-    !     End of feasibility phase
-    !     ------------------------
-
     IF (OUTPUT) WRITE(*,1001)
 
     DO I=1,N
@@ -243,7 +239,7 @@ contains
 11  CALL   SUBPROBLEMA(N,NPT,Q,DELTA,D, X, XL, XU, DSQ, &
                        M, EQUATN, LINEAR, CCODED, XEPS, FLAG) 
 
-    IF ( OUTPUT ) WRITE(*,1003) RHO,DELTA,Q(1),FOPT,IC
+    IF ( OUTPUT ) WRITE(*,1003) RHO,DELTA,VQUAD_A - Q(1),FOPT,IC
     IF ( FLAG .NE. 0 ) GOTO 31
 
     DISTZ = 0.0D0
@@ -346,15 +342,15 @@ contains
        end do
 
        if ( .not. forbidden ) then
-          FOPT = F
-          DO I=1, N
-             XNOVO(I) = X(I) 
-          END DO
           IF ((F-FOPT) .GE. (0.7D0*VQUAD)) THEN
              DELTA = DELTA  
           ELSE
              DELTA = DELTA + DELTA  
           END IF
+          FOPT = F
+          DO I=1, N
+             XNOVO(I) = X(I) 
+          END DO
           FLAG = 0
           GO TO 31 
        end if
@@ -365,7 +361,14 @@ contains
        DELTA = 5.0D-1 * DELTA
        GOTO 4
     END IF
-    IF (IC == MAXIC) GO TO 31
+    IF (IC == MAXIC) THEN
+       FLAG = 3
+       GO TO 31
+    END IF
+    IF ( RHO .LE. RHOEND ) THEN
+       FLAG = 4
+       GOTO 31
+    END IF
 !!$    IF ((RHO .LE. RHOEND) .OR. (IC == MAXIC)) GO TO 31
     KN=0
     DO   K=1,NPT
@@ -397,6 +400,7 @@ contains
     if ( OUTPUT .and. flag .eq. -1 ) write(*,1021)
     if ( OUTPUT .and. flag .eq.  2 ) write(*,1022)
     if ( OUTPUT .and. flag .eq.  3 ) write(*,1023) MAXIC
+    if ( OUTPUT .and. flag .eq.  4 ) write(*,1024)
 
     F = FOPT
 
@@ -449,6 +453,7 @@ contains
 1022 FORMAT(/,'Flag 2: Error in the internal solver.',/)
 1023 FORMAT(/,'Flag 3: Reached the maximum of',1X,I10,1X, &
           'function evaluations.',/)
+1024 FORMAT(/,'Flag 4: Rho smaller than tolerance.',/)
 
 2000 FORMAT(/,'Final Iteration',/,15('-'),2/,          &
             'Objective function =',29X,D23.8,/,        &
@@ -772,7 +777,6 @@ contains
           AUXILIAR(3) = TAU
           AUXILIAR(4) = SIGM                           
        END IF
-       write(*,*)IT,ITT,IAUXILIAR
        IT = IT + 1
     END DO
 
