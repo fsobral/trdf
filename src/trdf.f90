@@ -336,6 +336,7 @@ contains
        do i = 1,nf
           if ( FEAS .ge. (1.0D0 - ALPHA) * hfilter(i) .and. &
                F .ge. ffilter(i) - ALPHA * hfilter(i) ) then
+             write(*,*) 'Not in filter',f,fopt
              forbidden = .true.
              exit
           end if
