@@ -278,7 +278,7 @@ contains
           END IF
        END DO
 
-       IF (KN .EQ. 0)   RHO = GAMA * RHO              
+       IF (KN .EQ. 0) RHO = GAMA * RHO              
 
        GO TO 4
     END IF
@@ -336,16 +336,15 @@ contains
        do i = 1,nf
           if ( FEAS .ge. (1.0D0 - ALPHA) * hfilter(i) .and. &
                F .ge. ffilter(i) - ALPHA * hfilter(i) ) then
-             write(*,*) 'Not in filter',f,fopt
              forbidden = .true.
              exit
           end if
        end do
 
        if ( .not. forbidden ) then
-          IF ((F-FOPT) .GE. (0.7D0*VQUAD)) THEN
-!!$          IF ((F-FOPT) .GE. (0.7D0*VQUAD) .OR. &
-!!$              DISTZ .LT. DELTA) THEN
+!!$          IF ((F-FOPT) .GE. (0.7D0*VQUAD)) THEN
+          IF ((F-FOPT) .GE. (0.7D0*VQUAD) .OR. &
+              DISTZ .LT. DELTA) THEN
              DELTA = DELTA  
           ELSE
              DELTA = DELTA + DELTA  
@@ -903,7 +902,8 @@ contains
     IF ( FLAG .NE. 0 ) RETURN
 
     VQUAD_A=  F + Q(1) ! MODEL IN XNOVO 
-    VQUAD=  -VQUAD + VQUAD_A  
+!!$    VQUAD=  -VQUAD + VQUAD_A  
+    VQUAD=  VQUAD_A - Q(1) ! Mudei isso!
     IF (VQUAD .GE. 0.D0 .or. cnorm .gt. xeps)  THEN
        DO I=1, N
           X(I) = XANTIGO(I) 
