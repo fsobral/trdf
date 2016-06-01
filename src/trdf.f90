@@ -284,8 +284,9 @@ contains
     END IF
 
     CALL CALFUN(N,X,F,FLAG)
-
     IF ( FLAG .NE. 0 ) GOTO 31
+
+    IF ( OUTPUT ) WRITE(*,1006) F
 
 !!$    IF ((F-FOPT) .GT. (0.1D0*VQUAD)) THEN
 !!$       DELTA= 0.5D0*DELTA                 
@@ -445,10 +446,13 @@ contains
             5X,'RHO =',50X,D12.5,/,                &
             5X,'Delta =',48X,D12.5,/,              &
             5X,'Model value =',31X,D23.8,/,        &
-            5X,'Objective function =',24X,D23.8,/, &
+            5X,'Objective function (at center) =',12X,D23.8,/, &
             5X,'Function evaluations =',35X,I10)
 1004 FORMAT(5X,'Objective function =',24X,D23.8)
 1005 FORMAT(/,'REMOVING sampling point',1X,I4,'.')
+1006 FORMAT(5X,'Objective function (at trial point) =',&
+            7X,D23.8)
+
 
 1020 FORMAT(/,'Solution was found!',/)
 1021 FORMAT(/,'Flag -1: Error while evaluating functions.',/)
@@ -470,8 +474,8 @@ contains
           'This algorithm was based on paper',/,                &
           'P.D. Conejo, E.W. Karas, and L.G. Pedroso',/,        &
           '"A trust-region derivative-free algorithm for',/,    &
-          'constrained problems", to appear in Optimization',/, &
-          'Methods & Software.',/)
+          'constrained problems", Optimization Methods ',/,     &
+          'and Software, v. 30 (6), p. 1126-1145, 2015]',/)
   END SUBROUTINE TRDFSUB
 
   ! ******************************************************************
