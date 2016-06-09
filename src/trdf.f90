@@ -244,7 +244,8 @@ contains
 
     DISTZ = 0.0D0
     DO I = 1,N
-       DISTZ = DISTZ + (X(I) - Z(I)) ** 2.0D0
+!!$       DISTZ = DISTZ + (X(I) - Z(I)) ** 2.0D0
+       DISTZ = MAX(DISTZ, ABS(X(I) - Z(I)))
     END DO
 
     DISTSQ=(10.D0*RHO)**2                 
@@ -263,6 +264,7 @@ contains
           END IF
        end do
 
+       ! TODO: Test only exiting with epsilon tol
        IF (RHO .LE. RHOEND .AND. FEAS .LE. EPSFEAS) GO TO 31
 
        KN=0
