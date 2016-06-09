@@ -370,7 +370,8 @@ contains
        FLAG = 3
        GO TO 31
     END IF
-    IF ( RHO .LE. RHOEND ) THEN
+!!$    IF ( RHO .LE. RHOEND ) THEN
+    IF ( RHO .LE. 1.0D-15 ) THEN
        FLAG = 4
        GOTO 31
     END IF
