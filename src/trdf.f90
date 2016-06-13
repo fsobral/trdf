@@ -240,7 +240,15 @@ contains
                        M, EQUATN, LINEAR, CCODED, XEPS, FLAG) 
 
     IF ( OUTPUT ) WRITE(*,1003) RHO,DELTA,VQUAD_A - Q(1),FOPT,IC
-    IF ( FLAG .NE. 0 ) GOTO 31
+    IF ( FLAG .NE. 0 ) THEN
+       write(*,*) 'Error in the solver...'
+       IF ( RHO .LE. RHOEND ) THEN
+          GOTO 31
+       ELSE
+          RHO = GAMA * RHO
+          GOTO 4
+       END IF
+    END IF
 
     DISTZ = 0.0D0
     DO I = 1,N
