@@ -920,12 +920,12 @@ contains
     VQUAD_A=  F + Q(1) ! MODEL IN XNOVO 
 !!$    VQUAD=  -VQUAD + VQUAD_A  
     VQUAD=  VQUAD_A - Q(1) ! Mudei isso!
-    IF (VQUAD .GE. 0.D0 .or. cnorm .gt. xeps)  THEN
-       DO I=1, N
-          X(I) = XANTIGO(I) 
-       END DO
-       DSQ = 0D0
-    END IF
+!!$    IF (VQUAD .GE. 0.D0 .or. cnorm .gt. xeps)  THEN
+!!$       DO I=1, N
+!!$          X(I) = XANTIGO(I) 
+!!$       END DO
+!!$       DSQ = 0D0
+!!$    END IF
 
     RETURN
   END SUBROUTINE SUBPROBLEMA
