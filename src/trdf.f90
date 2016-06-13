@@ -19,6 +19,7 @@ module trdf
   ! COMMON ARRAYS
 
   real(8) :: XBASE_A(INN), GOPT_A(INN), HQ_A(INN ** 2), XOPT_A(INN)
+  real(8), allocatable :: FF(:),Q(:),H(:,:),Y(:,:)
 
   ! COMMON SUBROUTINES
 
@@ -95,7 +96,7 @@ contains
 
   SUBROUTINE TRDFSUB(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,EVALF_,EVALLC_, &
        EVALLJAC_,EVALHC_,EVALC_,MAXFCNT,RBEG,REND,XEPS,OUTPUT,NF,  &
-       ALPHA,FFILTER,HFILTER,Y,OUTITER,DELTA,EPSFEAS,F,FEAS,FCNT,RHO,FLAG)
+       ALPHA,FFILTER,HFILTER,OUTITER,DELTA,EPSFEAS,F,FEAS,FCNT,RHO,FLAG)
 
     ! This subroutine is the implementation of the Derivative-free
     ! Trust-region algorithm for constrained optimization described in
@@ -169,7 +170,7 @@ contains
     real(8) :: ALPHA,F,DELTA,EPSFEAS,FEAS,RBEG,REND,RHO,XEPS
 
     ! ARRAY ARGUMENTS
-    REAL(8) :: FFILTER(NF),HFILTER(NF),X(N),XL(N),XU(N),Y(NPT,N)
+    REAL(8) :: FFILTER(NF),HFILTER(NF),X(N),XL(N),XU(N)
     logical :: ccoded(2),equatn(m),linear(m)
 
     ! EXTERNAL SUBROUTINES
@@ -179,37 +180,42 @@ contains
                     equatn,linear,alpha,nf,ffilter,hfilter,epsfeas, &
                     outiter
     intent(out  ) :: f,feas,fcnt,flag,rho
-    intent(inout) :: delta,x,y
+    intent(inout) :: delta,x
 
     ! LOCAL ARRAYS
-    REAL(8) :: FF(NPT),D(INN),Q(1+N+N*(N+1)/2),H(NPT+N+1,NPT+N+1), &
-         XNOVO(INN),SL(INN),SU(INN), VETOR1(NPT+N+1),Z(INN)
+    REAL(8) :: D(INN),XNOVO(INN),SL(INN),SU(INN), VETOR1(NPT+N+1),Z(INN)
 
     ! LOCAL SCALARS
     logical :: forbidden
     integer :: i,it,j,k,kn,previt
-    real(8) :: alfa,beta,c,cnorm,distsq,dsq,fopt,gama, &
+    real(8) :: alfa,beta,c,cnorm,distsq,dsq,fopt,gamma, &
          mindelta,rhobeg,rhoend,sigm,sum,tau,tempofinal, &
          tempoinicial,fz,distz
 
     IF ( OUTPUT ) WRITE(*,3000)
 
+    ! -------------- !
+    ! Initialization !
+    ! -------------- !
+
     flag = 0
+
+    ! Set the user-defined functions
 
     evalf   => evalf_
     evallc   => evallc_
     evalljac => evalljac_
     evalhc  => evalhc_
     evalc   => evalc_
-
-    F      = 1.0D+300
-    IC     = 0
-    MAXIC  = maxfcnt ! MAXIMUM NUMBER OF FUNCTION EVALUATIONS
-    RHOBEG = RBEG
-    RHOEND = REND
-    RHO    = RHOBEG
-    DELTA  = MAX(DELTA, RHO) ! Correcting delta if necessary
-    GAMA   = 0.1D0
+    
+    F       = 1.0D+300
+    IC      = 0
+    MAXIC   = maxfcnt ! MAXIMUM NUMBER OF FUNCTION EVALUATIONS
+    RHOBEG  = RBEG
+    RHOEND  = REND
+    RHO     = RHOBEG
+    DELTA   = MAX(DELTA, RHO) ! Correcting delta if necessary
+    GAMMA   = 0.1D0
 
     IT = 1
 
@@ -221,11 +227,43 @@ contains
        XBASE_A(I)= X(I)            
     END DO
 
-    if ( outiter .gt. 1 ) GOTO 11
+    if ( outiter .gt. 1 ) then
+
+       ! Repurposing the interpolation points from the previous
+       ! iterations, but first verify if the set is 'well poised'
+       ! for the new point.
+
+       KN=0
+       DO   K=1,NPT
+          SUM=0D0
+          DO   J=1,N
+             SUM=SUM+(Y(K,J)-Z(J))**2
+          END DO
+          IF ( SUM .GT. 10.0D0 * RHO ** 2.0D0 ) THEN
+             KN=K
+             exit
+          END IF
+       END DO
+
+       if ( KN .eq. 0 ) GOTO 11
+
+       CALL CALFUN(N,X,FOPT,FLAG)
+       IF ( FLAG .NE. 0 ) GOTO 31
+
+    else
+
+       ! First outer iteration. Allocates the whole structure.
+       ! TODO: Maybe we have to deallocate it?
+       ! TODO: Test allocation errors
+       allocate(Y(NPT,N),FF(NPT),Q(1+N+N*(N+1)/2),H(NPT+N+1,NPT+N+1))
+
+    end if
 
     GO TO 5
+
 4   CONTINUE     
-    DO I=1, N
+
+    DO I=1,N
        X(I) = XNOVO(I)                     
        XBASE_A(I)=  XNOVO(I)                  
     END DO
@@ -244,7 +282,16 @@ contains
                        M, EQUATN, LINEAR, CCODED, XEPS, FLAG) 
 
     IF ( OUTPUT ) WRITE(*,1003) RHO,DELTA,VQUAD_A - Q(1),FOPT,IC
-    IF ( FLAG .NE. 0 ) GOTO 31
+    IF ( FLAG .NE. 0 ) THEN
+       write(*,*) 'Error in the solver...'
+       IF ( RHO .LE. RHOEND ) THEN
+          GOTO 31
+       ELSE
+          RHO = GAMMA * RHO
+          GOTO 4
+       END IF
+    END IF
+
 
     DISTZ = 0.0D0
     DO I = 1,N
@@ -285,7 +332,7 @@ contains
           END IF
        END DO
 
-       IF (KN .EQ. 0) RHO = GAMA * RHO              
+       IF (KN .EQ. 0) RHO = GAMMA * RHO              
 
        GO TO 4
     END IF
@@ -400,7 +447,7 @@ contains
     END IF
 
     DELTA = RHO  
-    RHO = GAMA * RHO      
+    RHO = GAMMA * RHO      
 
     GO TO 11    
 
@@ -514,7 +561,7 @@ contains
     real(8) :: ACUMULADOR
 
     ! LOCAL ARRAYS
-    real(8) ::  E(N+1,NPT),OMEGA(NPT,NPT),Y(NPT,N),GAMA(N+1,N+1), &
+    real(8) ::  E(N+1,NPT),OMEGA(NPT,NPT),Y(NPT,N),GAMMA(N+1,N+1), &
          Z(NPT,NPT-N-1),HQ(n,n),FFTEMP(npt)
     INTEGER :: IP(npt), IQ(npt)
 
@@ -639,7 +686,7 @@ contains
     END DO
     DO I=1, N+1
        DO J=1, N+1
-          GAMA(I,J)=0D0
+          GAMMA(I,J)=0D0
        END DO
     END DO
     DO I=1, NPT  
@@ -916,12 +963,13 @@ contains
     VQUAD_A=  F + Q(1) ! MODEL IN XNOVO 
 !!$    VQUAD=  -VQUAD + VQUAD_A  
     VQUAD=  VQUAD_A - Q(1) ! Mudei isso!
-    IF (VQUAD .GE. 0.D0 .or. cnorm .gt. xeps)  THEN
-       DO I=1, N
-          X(I) = XANTIGO(I) 
-       END DO
-       DSQ = 0D0
-    END IF
+    ! Comentei o texto abaixo
+!!$    IF (VQUAD .GE. 0.D0 .or. cnorm .gt. xeps)  THEN
+!!$       DO I=1, N
+!!$          X(I) = XANTIGO(I) 
+!!$       END DO
+!!$       DSQ = 0D0
+!!$    END IF
 
     RETURN
   END SUBROUTINE SUBPROBLEMA
