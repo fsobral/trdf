@@ -250,7 +250,8 @@ contains
 
     DISTSQ=(10.D0*RHO)**2                 
 !!$    IF (SQRT(DSQ) .LT. 0.5D0*RHO) THEN 
-    IF ( SQRT(DISTZ) .LT. 0.5D0*RHO) THEN 
+!!$    IF ( SQRT(DISTZ) .LT. 0.5D0*RHO) THEN 
+    IF ( DISTZ .LT. 0.5D0*RHO) THEN 
        ! New criterium
 
        FEAS = 0.0D0
