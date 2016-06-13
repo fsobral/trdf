@@ -95,7 +95,7 @@ contains
 
   SUBROUTINE TRDFSUB(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,EVALF_,EVALLC_, &
        EVALLJAC_,EVALHC_,EVALC_,MAXFCNT,RBEG,REND,XEPS,OUTPUT,NF,  &
-       ALPHA,FFILTER,HFILTER,DELTA,EPSFEAS,F,FEAS,FCNT,RHO)
+       ALPHA,FFILTER,HFILTER,Y,OUTITER,DELTA,EPSFEAS,F,FEAS,FCNT,RHO,FLAG)
 
     ! This subroutine is the implementation of the Derivative-free
     ! Trust-region algorithm for constrained optimization described in
@@ -165,34 +165,36 @@ contains
 
     ! SCALAR ARGUMENTS
     logical :: OUTPUT
-    integer :: m,maxfcnt,N,NF,NPT,FCNT
+    integer :: flag,m,maxfcnt,N,NF,NPT,FCNT,outiter
     real(8) :: ALPHA,F,DELTA,EPSFEAS,FEAS,RBEG,REND,RHO,XEPS
 
     ! ARRAY ARGUMENTS
-    REAL(8) :: FFILTER(NF),HFILTER(NF),X(N),XL(N),XU(N)
+    REAL(8) :: FFILTER(NF),HFILTER(NF),X(N),XL(N),XU(N),Y(NPT,N)
     logical :: ccoded(2),equatn(m),linear(m)
 
     ! EXTERNAL SUBROUTINES
     external :: evalf_,evallc_,evalljac_,evalhc_,evalc_
 
     intent(in   ) :: m,maxfcnt,n,npt,rbeg,rend,xeps,xl,xu,ccoded, &
-                    equatn,linear,alpha,nf,ffilter,hfilter,epsfeas
-    intent(out  ) :: f,feas,fcnt,rho
-    intent(inout) :: delta,x
+                    equatn,linear,alpha,nf,ffilter,hfilter,epsfeas, &
+                    outiter
+    intent(out  ) :: f,feas,fcnt,flag,rho
+    intent(inout) :: delta,x,y
 
     ! LOCAL ARRAYS
-    REAL(8) :: FF(NPT),D(INN),Y(NPT,N),Q(1+N+N*(N+1)/2), &
-         H(NPT+N+1,NPT+N+1),XNOVO(INN),SL(INN),SU(INN), VETOR1(NPT+N+1), &
-         Z(INN)
+    REAL(8) :: FF(NPT),D(INN),Q(1+N+N*(N+1)/2),H(NPT+N+1,NPT+N+1), &
+         XNOVO(INN),SL(INN),SU(INN), VETOR1(NPT+N+1),Z(INN)
 
     ! LOCAL SCALARS
     logical :: forbidden
-    integer :: i,it,j,k,kn,flag,previt
+    integer :: i,it,j,k,kn,previt
     real(8) :: alfa,beta,c,cnorm,distsq,dsq,fopt,gama, &
          mindelta,rhobeg,rhoend,sigm,sum,tau,tempofinal, &
          tempoinicial,fz,distz
 
     IF ( OUTPUT ) WRITE(*,3000)
+
+    flag = 0
 
     evalf   => evalf_
     evallc   => evallc_
@@ -218,6 +220,8 @@ contains
        XNOVO(I) = X(I)
        XBASE_A(I)= X(I)            
     END DO
+
+    if ( outiter .gt. 1 ) GOTO 11
 
     GO TO 5
 4   CONTINUE     
