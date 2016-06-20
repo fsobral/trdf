@@ -14,11 +14,11 @@ module trdf
   ! COMMON SCALARS
 
   integer :: IC,MAXIC
-  real(8) :: VQUAD,VQUAD_A
+  real(8) :: VQUAD_A
 
   ! COMMON ARRAYS
 
-  real(8) :: XBASE_A(INN), GOPT_A(INN), HQ_A(INN ** 2), XOPT_A(INN)
+  real(8) :: XBASE_A(INN), GOPT_A(INN), HQ_A(INN ** 2)
   real(8), allocatable :: FF(:),Q(:),H(:,:),Y(:,:)
 
   ! COMMON SUBROUTINES
@@ -190,7 +190,7 @@ contains
     integer :: i,j,k,kn,previt,t,tbar
     real(8) :: alfa,beta,c,cnorm,distsq,dsq,gamma, &
          mindelta,rhobeg,rhoend,sigm,sum,tau,tempofinal, &
-         tempoinicial,fz,distz
+         tempoinicial,fz,distz,qx,qz
 
     IF ( OUTPUT ) WRITE(*,3000)
 
@@ -218,7 +218,7 @@ contains
     GAMMA   = 0.1D0
 
     ! The first column is the center of the interpolation
-    ! only when RESCUE is happening
+    ! only when RESCUE is ocurring
     tbar = -1
 
     IF (OUTPUT) WRITE(*,1001)
@@ -226,7 +226,6 @@ contains
     DO I=1,N
        Z(I) = X(I)
        XNOVO(I) = X(I)
-       XBASE_A(I)= X(I)            
     END DO
 
     if ( outiter .gt. 1 ) then
@@ -247,10 +246,14 @@ contains
           END IF
        END DO
 
-       if ( KN .eq. 0 ) GOTO 11
+       if ( KN .eq. 0 ) then 
 
-       CALL CALFUN(N,X,FZ,FLAG)
-       IF ( FLAG .NE. 0 ) GOTO 31
+          CALL CALFUN(N,X,FZ,FLAG)
+          IF ( FLAG .NE. 0 ) GOTO 31
+
+          GOTO 11
+
+       end if
 
     else
 
@@ -258,8 +261,12 @@ contains
        ! TODO: Maybe we have to deallocate it?
        ! TODO: Test allocation errors
        allocate(Y(NPT,N),FF(NPT),Q(1+N+N*(N+1)/2),H(NPT+N+1,NPT+N+1))
-
+       
     end if
+
+    DO I=1,N
+       XBASE_A(I) = X(I) 
+    END DO
 
     GO TO 5
 
@@ -272,7 +279,7 @@ contains
 
 5   continue
 
-    ! Now z_k is the center of the model
+    ! Since we are rebuilding, z_k is the center of the model
     tbar = 1
 
     CALL  PRIMEIROMODELO1 (N,X,Q,H, NPT,RHO,Y,FF,FLAG) 
@@ -286,7 +293,21 @@ contains
 11  CALL   SUBPROBLEMA(N,NPT,Q,DELTA,D, X, XL, XU, DSQ, &
                        M, EQUATN, LINEAR, CCODED, XEPS, FLAG) 
 
-    IF ( OUTPUT ) WRITE(*,1003) RHO,DELTA,VQUAD_A - Q(1),FZ,IC
+    ! Actually, we should sum Q(1) to have the correct value
+    ! of the model at the points. But, in order to calculate
+    ! the difference, we can ommit Q(1), since it will be
+    ! cancelated.
+
+    call mevalf(N,d,QX,flag)
+ 
+    do i = 1,n
+       d(i) = z(i) - xbase_a(i)
+    end do
+
+    call mevalf(N,d,QZ,flag)
+
+    IF ( OUTPUT ) WRITE(*,1003) RHO,DELTA,QX + Q(1),FZ,IC
+
     IF ( FLAG .NE. 0 ) THEN
        write(*,*) 'Error in the solver...'
        IF ( RHO .LE. RHOEND ) THEN
@@ -336,7 +357,7 @@ contains
           END IF
        END DO
 
-       IF (KN .EQ. 0) RHO = GAMMA * RHO              
+       IF (KN .EQ. 0) RHO = GAMMA * RHO      
 
        GO TO 4
     END IF
@@ -367,7 +388,7 @@ contains
 
     CALL ATUALIZAQ(H, N, NPT, Q, DELTA, Y, X, F, t) 
 
-23  IF (F  .LE.  FZ + 0.1D0*VQUAD) THEN
+23  IF ( F .LE. FZ + 0.1D0 * (QX - QZ) ) THEN
 
        ! New criterium
 
@@ -393,13 +414,16 @@ contains
 
        if ( .not. forbidden ) then
 !!$          IF ((F-FOPT) .GE. (0.7D0*VQUAD)) THEN
-          IF ((F-FZ) .GE. (0.7D0*VQUAD) .OR. &
-              DISTZ .LT. DELTA) THEN
+          IF ( F - FZ .GE. 0.7D0 * (QX - QZ) .OR. &
+               DISTZ .LT. DELTA ) THEN
              DELTA = DELTA  
           ELSE
              DELTA = DELTA + DELTA  
           END IF
-          FZ = F
+
+          FZ   = F
+          tbar = t
+
           DO I=1, N
              XNOVO(I) = X(I) 
           END DO
@@ -496,7 +520,7 @@ contains
             5X,'RHO =',50X,D12.5,/,                &
             5X,'Delta =',48X,D12.5,/,              &
             5X,'Model value =',31X,D23.8,/,        &
-            5X,'Objective function (at center) =',12X,D23.8,/, &
+            5X,'Objective function (at Z) =',12X,D23.8,/, &
             5X,'Function evaluations =',35X,I10)
 1004 FORMAT(5X,'Objective function =',24X,D23.8)
 1005 FORMAT(/,'REMOVING sampling point',1X,I4,'.')
@@ -913,7 +937,7 @@ contains
 
     ! LOCAL SCALARS
     integer :: i
-    real(8) :: cnorm,f,sum
+    real(8) :: cnorm,f,qxCur,qxNew,sum
 
     ! LOCAL ARRAYS
     real(8) ::  XANTIGO(INN),L(N),H(NPT+N+1,NPT+N+1),U(N) 
@@ -933,7 +957,7 @@ contains
 
     IF ( FLAG .NE. 0 ) RETURN
 
-    VQUAD=  F + Q(1)                                 
+    qxCur = F + Q(1)
 
     CALL SOLVER(N, L, U, D, M, EQUATN, LINEAR, CCODED, &
          mevalf, mevalg, mevalh, mevalc, mevaljac, mevalhc, &
@@ -955,16 +979,18 @@ contains
 
     IF ( FLAG .NE. 0 ) RETURN
 
-    VQUAD_A=  F + Q(1) ! MODEL IN XNOVO 
-!!$    VQUAD=  -VQUAD + VQUAD_A  
-    VQUAD=  VQUAD_A - Q(1) ! Mudei isso!
-    ! Comentei o texto abaixo
-!!$    IF (VQUAD .GE. 0.D0 .or. cnorm .gt. xeps)  THEN
-!!$       DO I=1, N
-!!$          X(I) = XANTIGO(I) 
-!!$       END DO
-!!$       DSQ = 0D0
-!!$    END IF
+    VQUAD_A = F + Q(1) ! MODEL IN XNOVO 
+
+    qxNew = VQUAD_A
+
+!!$    VQUAD   = VQUAD_A - VQUAD
+
+    IF ( qxNew - qxCur .GE. 0.D0 .or. cnorm .gt. xeps)  THEN
+       DO I=1, N
+          X(I) = XANTIGO(I) 
+       END DO
+       DSQ = 0D0
+    END IF
 
     RETURN
   END SUBROUTINE SUBPROBLEMA
@@ -1251,7 +1277,7 @@ contains
     flag = -1
 
     DO I=1, N
-       XA(I) = X(I) + XOPT_A(I) + XBASE_A(I)
+       XA(I) = X(I) + XBASE_A(I)
     END DO
 
     call evallc(n,XA,ind,c,flag)
@@ -1282,7 +1308,7 @@ contains
     flag = -1
 
     DO I=1, N
-       XA(I) = X(I) + XOPT_A(I) + XBASE_A(I)
+       XA(I) = X(I) + XBASE_A(I)
     END DO
 
     call evalljac(n,XA,ind,jcvar,jcval,jcnnz,lim,lmem,flag)
@@ -1313,7 +1339,7 @@ contains
     flag = -1
 
     DO i = 1,n
-       XA(I) = X(I) + XOPT_A(I) + XBASE_A(I)
+       XA(I) = X(I) + XBASE_A(I)
     END DO
 
     call evalhc(n,XA,ind,hcrow,hccol,hcval,hcnnz,lim,lmem,flag)
