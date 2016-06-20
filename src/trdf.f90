@@ -13,7 +13,7 @@ module trdf
 
   ! COMMON SCALARS
 
-  integer :: IC,MAXIC
+  integer :: IC,MAXIC,TBAR_
   real(8) :: VQUAD_A
 
   ! COMMON ARRAYS
@@ -187,7 +187,7 @@ contains
 
     ! LOCAL SCALARS
     logical :: forbidden
-    integer :: i,j,k,kn,previt,t,tbar
+    integer :: i,j,k,kn,previt,t
     real(8) :: alfa,beta,c,cnorm,distsq,dsq,gamma, &
          mindelta,rhobeg,rhoend,sigm,sum,tau,tempofinal, &
          tempoinicial,fz,distz,qx,qz
@@ -216,10 +216,6 @@ contains
     RHO     = RHOBEG
     DELTA   = MAX(DELTA, RHO) ! Correcting delta if necessary
     GAMMA   = 0.1D0
-
-    ! The first column is the center of the interpolation
-    ! only when RESCUE is ocurring
-    tbar = -1
 
     IF (OUTPUT) WRITE(*,1001)
 
@@ -261,7 +257,7 @@ contains
        ! TODO: Maybe we have to deallocate it?
        ! TODO: Test allocation errors
        allocate(Y(NPT,N),FF(NPT),Q(1+N+N*(N+1)/2),H(NPT+N+1,NPT+N+1))
-       
+
     end if
 
     DO I=1,N
@@ -280,7 +276,7 @@ contains
 5   continue
 
     ! Since we are rebuilding, z_k is the center of the model
-    tbar = 1
+    tbar_ = 1
 
     CALL  PRIMEIROMODELO1 (N,X,Q,H, NPT,RHO,Y,FF,FLAG) 
 
@@ -295,8 +291,8 @@ contains
 
     ! Actually, we should sum Q(1) to have the correct value
     ! of the model at the points. But, in order to calculate
-    ! the difference, we can ommit Q(1), since it will be
-    ! cancelated.
+    ! the difference, we can omit Q(1), since it will be
+    ! canceled.
 
     call mevalf(N,d,QX,flag)
  
@@ -370,7 +366,7 @@ contains
     ! CHOOSE WHO LEAVE Y CALCULATING THE VALUE OF SIGMA. THE VARIABLE
     ! IT' IS CHOOSEN FOR DEFINE WHO LEAVE.
 
-    t = tbar
+    t = tbar_
     CALL SIGMA(H,N,NPT,Y,X,VETOR1,SIGM,ALFA,BETA,TAU,t,DELTA)
 
     ! IF ANY REDUCTION IN F, PUT X IN INTERPOLATION SET.
@@ -421,11 +417,11 @@ contains
              DELTA = DELTA + DELTA  
           END IF
 
-          FZ   = F
-          tbar = t
+          FZ    = F
+          tbar_ = t
 
           DO I=1, N
-             XNOVO(I) = X(I) 
+             XNOVO(I) = X(I)
           END DO
           FLAG = 0
           GO TO 31 
@@ -520,7 +516,7 @@ contains
             5X,'RHO =',50X,D12.5,/,                &
             5X,'Delta =',48X,D12.5,/,              &
             5X,'Model value =',31X,D23.8,/,        &
-            5X,'Objective function (at Z) =',12X,D23.8,/, &
+            5X,'Objective function (at Z) =',17X,D23.8,/, &
             5X,'Function evaluations =',35X,I10)
 1004 FORMAT(5X,'Objective function =',24X,D23.8)
 1005 FORMAT(/,'REMOVING sampling point',1X,I4,'.')
