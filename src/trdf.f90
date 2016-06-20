@@ -231,9 +231,9 @@ contains
        ! for the new point.
 
        KN=0
-       DO   K=1,NPT
+       DO K=1,NPT
           SUM=0D0
-          DO   J=1,N
+          DO J=1,N
              SUM=SUM+(Y_(K,J)-Z(J))**2
           END DO
           IF ( SUM .GT. 10.0D0 * RHO ** 2.0D0 ) THEN
@@ -244,8 +244,32 @@ contains
 
        if ( KN .eq. 0 ) then 
 
-          CALL CALFUN(N,X,FZ,FLAG)
+          ! If the set seems well poised, then we have to choose a
+          ! point of the previous interpolation set to leave, in order
+          ! to insert z_k. The previous best point is stored in global
+          ! variable 'tbar_'. Finally, all the model is updated and
+          ! the algorithm proceeds to the resolution of the
+          ! subproblem.
+
+          CALL CALFUN(N,Z,FZ,FLAG)
           IF ( FLAG .NE. 0 ) GOTO 31
+
+          ! Select a point to leave
+
+          t = tbar_
+          CALL SIGMA(H_,N,NPT,Y_,Z,VETOR1,SIGM,ALFA,BETA,TAU,t,DELTA)
+
+          IF ( OUTPUT ) WRITE(*,1007) t
+
+          DO I=1, N
+             Y_(t,I) = Z(I) 
+          END DO
+
+          ! Update the model
+
+          CALL INVERSAH(H_,N,NPT,VETOR1,SIGM,t,ALFA,BETA,TAU)
+
+          CALL ATUALIZAQ(H_,N,NPT,Q_,DELTA,Y_,Z,FZ,t) 
 
           GOTO 11
 
@@ -256,7 +280,8 @@ contains
        ! First outer iteration. Allocates the whole structure.
        ! TODO: Maybe we have to deallocate it?
        ! TODO: Test allocation errors
-       allocate(Y_(NPT,N),FF_(NPT),Q_(1+N+N*(N+1)/2),H_(NPT+N+1,NPT+N+1))
+       allocate(Y_(NPT,N),FF_(NPT),Q_(1+N+N*(N+1)/2), &
+            H_(NPT+N+1,NPT+N+1))
 
     end if
 
@@ -292,7 +317,7 @@ contains
     ! Actually, we should sum Q(1) to have the correct value
     ! of the model at the points. But, in order to calculate
     ! the difference, we can omit Q(1), since it will be
-    ! canceled.
+    ! naturally canceled.
 
     call mevalf(N,d,QX,flag)
  
@@ -522,6 +547,7 @@ contains
 1005 FORMAT(/,'REMOVING sampling point',1X,I4,'.')
 1006 FORMAT(5X,'Objective function (at trial point) =',&
             7X,D23.8)
+1007 FORMAT(/,'ADDING Z in place of point',1X,I4,'.')
 
 
 1020 FORMAT(/,'Solution was found!',/)
