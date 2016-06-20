@@ -19,7 +19,7 @@ module trdf
   ! COMMON ARRAYS
 
   real(8) :: XBASE_A(INN), GOPT_A(INN), HQ_A(INN ** 2)
-  real(8), allocatable :: FF(:),Q(:),H(:,:),Y(:,:)
+  real(8), allocatable :: FF_(:),Q_(:),H_(:,:),Y_(:,:)
 
   ! COMMON SUBROUTINES
 
@@ -234,7 +234,7 @@ contains
        DO   K=1,NPT
           SUM=0D0
           DO   J=1,N
-             SUM=SUM+(Y(K,J)-Z(J))**2
+             SUM=SUM+(Y_(K,J)-Z(J))**2
           END DO
           IF ( SUM .GT. 10.0D0 * RHO ** 2.0D0 ) THEN
              KN=K
@@ -256,7 +256,7 @@ contains
        ! First outer iteration. Allocates the whole structure.
        ! TODO: Maybe we have to deallocate it?
        ! TODO: Test allocation errors
-       allocate(Y(NPT,N),FF(NPT),Q(1+N+N*(N+1)/2),H(NPT+N+1,NPT+N+1))
+       allocate(Y_(NPT,N),FF_(NPT),Q_(1+N+N*(N+1)/2),H_(NPT+N+1,NPT+N+1))
 
     end if
 
@@ -278,15 +278,15 @@ contains
     ! Since we are rebuilding, z_k is the center of the model
     tbar_ = 1
 
-    CALL  PRIMEIROMODELO1 (N,X,Q,H, NPT,RHO,Y,FF,FLAG) 
+    CALL  PRIMEIROMODELO1 (N,X,Q_,H_, NPT,RHO,Y_,FF_,FLAG) 
 
-    IF ( OUTPUT ) WRITE(*,1002) RHO,DELTA,FF(1),IC,MIN(N,MAXXEL), &
+    IF ( OUTPUT ) WRITE(*,1002) RHO,DELTA,FF_(1),IC,MIN(N,MAXXEL), &
                   (X(I), I=1,MIN(N,MAXXEL))
     IF ( FLAG .NE. 0 ) GOTO 31
 
-    FZ = FF(1)         
+    FZ = FF_(1)         
 
-11  CALL   SUBPROBLEMA(N,NPT,Q,DELTA,D, X, XL, XU, DSQ, &
+11  CALL   SUBPROBLEMA(N,NPT,Q_,DELTA,D, X, XL, XU, DSQ, &
                        M, EQUATN, LINEAR, CCODED, XEPS, FLAG) 
 
     ! Actually, we should sum Q(1) to have the correct value
@@ -302,7 +302,7 @@ contains
 
     call mevalf(N,d,QZ,flag)
 
-    IF ( OUTPUT ) WRITE(*,1003) RHO,DELTA,QX + Q(1),FZ,IC
+    IF ( OUTPUT ) WRITE(*,1003) RHO,DELTA,QX + Q_(1),FZ,IC
 
     IF ( FLAG .NE. 0 ) THEN
        write(*,*) 'Error in the solver...'
@@ -344,8 +344,8 @@ contains
        DO   K=1,NPT
           SUM=0D0
           DO   J=1,N
-             SUM=SUM+(Y(K,J)-Z(J))**2
-!!$             SUM=SUM+(Y(K,J)-X(J))**2
+             SUM=SUM+(Y_(K,J)-Z(J))**2
+!!$             SUM=SUM+(Y_(K,J)-X(J))**2
           END DO
           IF (SUM .GT. DISTSQ) THEN
              KN=K
@@ -363,26 +363,26 @@ contains
 
     IF ( OUTPUT ) WRITE(*,1006) F
 
-    ! CHOOSE WHO LEAVE Y CALCULATING THE VALUE OF SIGMA. THE VARIABLE
+    ! CHOOSE WHO LEAVE Y_ CALCULATING THE VALUE OF SIGMA. THE VARIABLE
     ! IT' IS CHOOSEN FOR DEFINE WHO LEAVE.
 
     t = tbar_
-    CALL SIGMA(H,N,NPT,Y,X,VETOR1,SIGM,ALFA,BETA,TAU,t,DELTA)
+    CALL SIGMA(H_,N,NPT,Y_,X,VETOR1,SIGM,ALFA,BETA,TAU,t,DELTA)
 
     ! IF ANY REDUCTION IN F, PUT X IN INTERPOLATION SET.
     IF (F .LE. FZ) THEN  
        IF ( OUTPUT ) WRITE(*,1005) t
        DO I=1, N
-          Y(t,I) = X(I) 
+          Y_(t,I) = X(I) 
        END DO
     ELSE
        GO TO 23
     END IF
 
     ! UPDATE H              
-    CALL INVERSAH(H, N, NPT,VETOR1, SIGM, t, ALFA, BETA,TAU)
+    CALL INVERSAH(H_, N, NPT,VETOR1, SIGM, t, ALFA, BETA,TAU)
 
-    CALL ATUALIZAQ(H, N, NPT, Q, DELTA, Y, X, F, t) 
+    CALL ATUALIZAQ(H_, N, NPT, Q_, DELTA, Y_, X, F, t) 
 
 23  IF ( F .LE. FZ + 0.1D0 * (QX - QZ) ) THEN
 
@@ -447,8 +447,8 @@ contains
     DO   K=1,NPT
        SUM=0D0
        DO   J=1,N
-!!$          SUM=SUM+(Y(K,J)-X(J))**2
-          SUM=SUM+(Y(K,J)-Z(J))**2
+!!$          SUM=SUM+(Y_(K,J)-X(J))**2
+          SUM=SUM+(Y_(K,J)-Z(J))**2
        END DO
        IF (SUM .GT. DISTSQ) THEN
           KN=K
