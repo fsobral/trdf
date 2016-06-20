@@ -188,7 +188,7 @@ contains
     ! LOCAL SCALARS
     logical :: forbidden
     integer :: i,j,k,kn,previt,t,tbar
-    real(8) :: alfa,beta,c,cnorm,distsq,dsq,fz,gamma, &
+    real(8) :: alfa,beta,c,cnorm,distsq,dsq,gamma, &
          mindelta,rhobeg,rhoend,sigm,sum,tau,tempofinal, &
          tempoinicial,fz,distz
 
@@ -217,7 +217,9 @@ contains
     DELTA   = MAX(DELTA, RHO) ! Correcting delta if necessary
     GAMMA   = 0.1D0
 
-    IT = 1
+    ! The first column is the center of the interpolation
+    ! only when RESCUE is happening
+    tbar = -1
 
     IF (OUTPUT) WRITE(*,1001)
 
@@ -269,6 +271,9 @@ contains
     END DO
 
 5   continue
+
+    ! Now z_k is the center of the model
+    tbar = 1
 
     CALL  PRIMEIROMODELO1 (N,X,Q,H, NPT,RHO,Y,FF,FLAG) 
 
@@ -341,19 +346,11 @@ contains
 
     IF ( OUTPUT ) WRITE(*,1006) F
 
-!!$    IF ((F-FOPT) .GT. (0.1D0*VQUAD)) THEN
-!!$       DELTA= 0.5D0*DELTA                 
-!!$    ELSE IF ((F-FOPT) .GE. (0.7D0*VQUAD)) THEN
-!!$       DELTA=DELTA  
-!!$    ELSE
-!!$       DELTA =   DELTA + DELTA  
-!!$    END IF
-!!$
     ! CHOOSE WHO LEAVE Y CALCULATING THE VALUE OF SIGMA. THE VARIABLE
     ! IT' IS CHOOSEN FOR DEFINE WHO LEAVE.
 
-    PREVIT = IT
-    CALL SIGMA(H,N,NPT,Y,X,VETOR1,SIGM,ALFA,BETA,TAU,IT,DELTA)    
+    t = tbar
+    CALL SIGMA(H,N,NPT,Y,X,VETOR1,SIGM,ALFA,BETA,TAU,t,DELTA)
 
     ! IF ANY REDUCTION IN F, PUT X IN INTERPOLATION SET.
     IF (F .LE. FZ) THEN  
@@ -362,14 +359,13 @@ contains
           Y(t,I) = X(I) 
        END DO
     ELSE
-       IT = PREVIT
        GO TO 23
     END IF
 
     ! UPDATE H              
-    CALL INVERSAH(H, N, NPT,VETOR1, SIGM, IT, ALFA, BETA,TAU)
+    CALL INVERSAH(H, N, NPT,VETOR1, SIGM, t, ALFA, BETA,TAU)
 
-    CALL ATUALIZAQ(H, N, NPT, Q, DELTA, Y, X, F, IT) 
+    CALL ATUALIZAQ(H, N, NPT, Q, DELTA, Y, X, F, t) 
 
 23  IF (F  .LE.  FZ + 0.1D0*VQUAD) THEN
 
