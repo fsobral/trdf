@@ -13,12 +13,12 @@ module trdf
 
   ! COMMON SCALARS
 
-  integer :: IC,MAXIC
-  real(8) :: VQUAD,VQUAD_A
+  integer :: IC,MAXIC,TBAR_
+  real(8) :: VQUAD_A
 
   ! COMMON ARRAYS
 
-  real(8) :: XBASE_A(INN), GOPT_A(INN), HQ_A(INN ** 2), XOPT_A(INN)
+  real(8) :: XBASE_A(INN), GOPT_A(INN), HQ_A(INN ** 2)
   real(8), allocatable :: FF(:),Q(:),H(:,:),Y(:,:)
 
   ! COMMON SUBROUTINES
@@ -187,10 +187,10 @@ contains
 
     ! LOCAL SCALARS
     logical :: forbidden
-    integer :: i,it,j,k,kn,previt
-    real(8) :: alfa,beta,c,cnorm,distsq,dsq,fopt,gamma, &
+    integer :: i,j,k,kn,previt,t
+    real(8) :: alfa,beta,c,cnorm,distsq,dsq,gamma, &
          mindelta,rhobeg,rhoend,sigm,sum,tau,tempofinal, &
-         tempoinicial,fz,distz
+         tempoinicial,fz,distz,qx,qz
 
     IF ( OUTPUT ) WRITE(*,3000)
 
@@ -217,14 +217,11 @@ contains
     DELTA   = MAX(DELTA, RHO) ! Correcting delta if necessary
     GAMMA   = 0.1D0
 
-    IT = 1
-
     IF (OUTPUT) WRITE(*,1001)
 
     DO I=1,N
        Z(I) = X(I)
        XNOVO(I) = X(I)
-       XBASE_A(I)= X(I)            
     END DO
 
     if ( outiter .gt. 1 ) then
@@ -245,10 +242,14 @@ contains
           END IF
        END DO
 
-       if ( KN .eq. 0 ) GOTO 11
+       if ( KN .eq. 0 ) then 
 
-       CALL CALFUN(N,X,FOPT,FLAG)
-       IF ( FLAG .NE. 0 ) GOTO 31
+          CALL CALFUN(N,X,FZ,FLAG)
+          IF ( FLAG .NE. 0 ) GOTO 31
+
+          GOTO 11
+
+       end if
 
     else
 
@@ -258,6 +259,10 @@ contains
        allocate(Y(NPT,N),FF(NPT),Q(1+N+N*(N+1)/2),H(NPT+N+1,NPT+N+1))
 
     end if
+
+    DO I=1,N
+       XBASE_A(I) = X(I) 
+    END DO
 
     GO TO 5
 
@@ -270,18 +275,35 @@ contains
 
 5   continue
 
+    ! Since we are rebuilding, z_k is the center of the model
+    tbar_ = 1
+
     CALL  PRIMEIROMODELO1 (N,X,Q,H, NPT,RHO,Y,FF,FLAG) 
 
     IF ( OUTPUT ) WRITE(*,1002) RHO,DELTA,FF(1),IC,MIN(N,MAXXEL), &
                   (X(I), I=1,MIN(N,MAXXEL))
     IF ( FLAG .NE. 0 ) GOTO 31
 
-    FOPT = FF(1)         
+    FZ = FF(1)         
 
 11  CALL   SUBPROBLEMA(N,NPT,Q,DELTA,D, X, XL, XU, DSQ, &
                        M, EQUATN, LINEAR, CCODED, XEPS, FLAG) 
 
-    IF ( OUTPUT ) WRITE(*,1003) RHO,DELTA,VQUAD_A - Q(1),FOPT,IC
+    ! Actually, we should sum Q(1) to have the correct value
+    ! of the model at the points. But, in order to calculate
+    ! the difference, we can omit Q(1), since it will be
+    ! canceled.
+
+    call mevalf(N,d,QX,flag)
+ 
+    do i = 1,n
+       d(i) = z(i) - xbase_a(i)
+    end do
+
+    call mevalf(N,d,QZ,flag)
+
+    IF ( OUTPUT ) WRITE(*,1003) RHO,DELTA,QX + Q(1),FZ,IC
+
     IF ( FLAG .NE. 0 ) THEN
        write(*,*) 'Error in the solver...'
        IF ( RHO .LE. RHOEND ) THEN
@@ -331,7 +353,7 @@ contains
           END IF
        END DO
 
-       IF (KN .EQ. 0) RHO = GAMMA * RHO              
+       IF (KN .EQ. 0) RHO = GAMMA * RHO      
 
        GO TO 4
     END IF
@@ -341,37 +363,28 @@ contains
 
     IF ( OUTPUT ) WRITE(*,1006) F
 
-!!$    IF ((F-FOPT) .GT. (0.1D0*VQUAD)) THEN
-!!$       DELTA= 0.5D0*DELTA                 
-!!$    ELSE IF ((F-FOPT) .GE. (0.7D0*VQUAD)) THEN
-!!$       DELTA=DELTA  
-!!$    ELSE
-!!$       DELTA =   DELTA + DELTA  
-!!$    END IF
-!!$
     ! CHOOSE WHO LEAVE Y CALCULATING THE VALUE OF SIGMA. THE VARIABLE
     ! IT' IS CHOOSEN FOR DEFINE WHO LEAVE.
 
-    PREVIT = IT
-    CALL SIGMA(H,N,NPT,Y,X,VETOR1,SIGM,ALFA,BETA,TAU,IT,DELTA)    
+    t = tbar_
+    CALL SIGMA(H,N,NPT,Y,X,VETOR1,SIGM,ALFA,BETA,TAU,t,DELTA)
 
     ! IF ANY REDUCTION IN F, PUT X IN INTERPOLATION SET.
-    IF (F .LE. FOPT) THEN  
-       IF ( OUTPUT ) WRITE(*,1005) IT
-       DO I=1, N            
-          Y(IT,I) = X(I) 
+    IF (F .LE. FZ) THEN  
+       IF ( OUTPUT ) WRITE(*,1005) t
+       DO I=1, N
+          Y(t,I) = X(I) 
        END DO
     ELSE
-       IT = PREVIT
        GO TO 23
     END IF
 
     ! UPDATE H              
-    CALL INVERSAH(H, N, NPT,VETOR1, SIGM, IT, ALFA, BETA,TAU)
+    CALL INVERSAH(H, N, NPT,VETOR1, SIGM, t, ALFA, BETA,TAU)
 
-    CALL ATUALIZAQ(H, N, NPT, Q, DELTA, Y, X, F, IT) 
+    CALL ATUALIZAQ(H, N, NPT, Q, DELTA, Y, X, F, t) 
 
-23  IF (F  .LE.  FOPT + 0.1D0*VQUAD) THEN
+23  IF ( F .LE. FZ + 0.1D0 * (QX - QZ) ) THEN
 
        ! New criterium
 
@@ -397,15 +410,18 @@ contains
 
        if ( .not. forbidden ) then
 !!$          IF ((F-FOPT) .GE. (0.7D0*VQUAD)) THEN
-          IF ((F-FOPT) .GE. (0.7D0*VQUAD) .OR. &
-              DISTZ .LT. DELTA) THEN
+          IF ( F - FZ .GE. 0.7D0 * (QX - QZ) .OR. &
+               DISTZ .LT. DELTA ) THEN
              DELTA = DELTA  
           ELSE
              DELTA = DELTA + DELTA  
           END IF
-          FOPT = F
+
+          FZ    = F
+          tbar_ = t
+
           DO I=1, N
-             XNOVO(I) = X(I) 
+             XNOVO(I) = X(I)
           END DO
           FLAG = 0
           GO TO 31 
@@ -459,7 +475,7 @@ contains
     if ( OUTPUT .and. flag .eq.  3 ) write(*,1023) MAXIC
     if ( OUTPUT .and. flag .eq.  4 ) write(*,1024)
 
-    F = FOPT
+    F = FZ
 
     do i = 1,n
        x(i) = XNOVO(i)
@@ -500,7 +516,7 @@ contains
             5X,'RHO =',50X,D12.5,/,                &
             5X,'Delta =',48X,D12.5,/,              &
             5X,'Model value =',31X,D23.8,/,        &
-            5X,'Objective function (at center) =',12X,D23.8,/, &
+            5X,'Objective function (at Z) =',17X,D23.8,/, &
             5X,'Function evaluations =',35X,I10)
 1004 FORMAT(5X,'Objective function =',24X,D23.8)
 1005 FORMAT(/,'REMOVING sampling point',1X,I4,'.')
@@ -917,7 +933,7 @@ contains
 
     ! LOCAL SCALARS
     integer :: i
-    real(8) :: cnorm,f,sum
+    real(8) :: cnorm,f,qxCur,qxNew,sum
 
     ! LOCAL ARRAYS
     real(8) ::  XANTIGO(INN),L(N),H(NPT+N+1,NPT+N+1),U(N) 
@@ -937,7 +953,7 @@ contains
 
     IF ( FLAG .NE. 0 ) RETURN
 
-    VQUAD=  F + Q(1)                                 
+    qxCur = F + Q(1)
 
     CALL SOLVER(N, L, U, D, M, EQUATN, LINEAR, CCODED, &
          mevalf, mevalg, mevalh, mevalc, mevaljac, mevalhc, &
@@ -959,16 +975,18 @@ contains
 
     IF ( FLAG .NE. 0 ) RETURN
 
-    VQUAD_A=  F + Q(1) ! MODEL IN XNOVO 
-!!$    VQUAD=  -VQUAD + VQUAD_A  
-    VQUAD=  VQUAD_A - Q(1) ! Mudei isso!
-    ! Comentei o texto abaixo
-!!$    IF (VQUAD .GE. 0.D0 .or. cnorm .gt. xeps)  THEN
-!!$       DO I=1, N
-!!$          X(I) = XANTIGO(I) 
-!!$       END DO
-!!$       DSQ = 0D0
-!!$    END IF
+    VQUAD_A = F + Q(1) ! MODEL IN XNOVO 
+
+    qxNew = VQUAD_A
+
+!!$    VQUAD   = VQUAD_A - VQUAD
+
+    IF ( qxNew - qxCur .GE. 0.D0 .or. cnorm .gt. xeps)  THEN
+       DO I=1, N
+          X(I) = XANTIGO(I) 
+       END DO
+       DSQ = 0D0
+    END IF
 
     RETURN
   END SUBROUTINE SUBPROBLEMA
@@ -1255,7 +1273,7 @@ contains
     flag = -1
 
     DO I=1, N
-       XA(I) = X(I) + XOPT_A(I) + XBASE_A(I)
+       XA(I) = X(I) + XBASE_A(I)
     END DO
 
     call evallc(n,XA,ind,c,flag)
@@ -1286,7 +1304,7 @@ contains
     flag = -1
 
     DO I=1, N
-       XA(I) = X(I) + XOPT_A(I) + XBASE_A(I)
+       XA(I) = X(I) + XBASE_A(I)
     END DO
 
     call evalljac(n,XA,ind,jcvar,jcval,jcnnz,lim,lmem,flag)
@@ -1317,7 +1335,7 @@ contains
     flag = -1
 
     DO i = 1,n
-       XA(I) = X(I) + XOPT_A(I) + XBASE_A(I)
+       XA(I) = X(I) + XBASE_A(I)
     END DO
 
     call evalhc(n,XA,ind,hcrow,hccol,hcval,hcnnz,lim,lmem,flag)
