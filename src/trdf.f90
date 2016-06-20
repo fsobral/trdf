@@ -187,8 +187,8 @@ contains
 
     ! LOCAL SCALARS
     logical :: forbidden
-    integer :: i,it,j,k,kn,previt
-    real(8) :: alfa,beta,c,cnorm,distsq,dsq,fopt,gamma, &
+    integer :: i,j,k,kn,previt,t,tbar
+    real(8) :: alfa,beta,c,cnorm,distsq,dsq,fz,gamma, &
          mindelta,rhobeg,rhoend,sigm,sum,tau,tempofinal, &
          tempoinicial,fz,distz
 
@@ -247,7 +247,7 @@ contains
 
        if ( KN .eq. 0 ) GOTO 11
 
-       CALL CALFUN(N,X,FOPT,FLAG)
+       CALL CALFUN(N,X,FZ,FLAG)
        IF ( FLAG .NE. 0 ) GOTO 31
 
     else
@@ -276,12 +276,12 @@ contains
                   (X(I), I=1,MIN(N,MAXXEL))
     IF ( FLAG .NE. 0 ) GOTO 31
 
-    FOPT = FF(1)         
+    FZ = FF(1)         
 
 11  CALL   SUBPROBLEMA(N,NPT,Q,DELTA,D, X, XL, XU, DSQ, &
                        M, EQUATN, LINEAR, CCODED, XEPS, FLAG) 
 
-    IF ( OUTPUT ) WRITE(*,1003) RHO,DELTA,VQUAD_A - Q(1),FOPT,IC
+    IF ( OUTPUT ) WRITE(*,1003) RHO,DELTA,VQUAD_A - Q(1),FZ,IC
     IF ( FLAG .NE. 0 ) THEN
        write(*,*) 'Error in the solver...'
        IF ( RHO .LE. RHOEND ) THEN
@@ -356,10 +356,10 @@ contains
     CALL SIGMA(H,N,NPT,Y,X,VETOR1,SIGM,ALFA,BETA,TAU,IT,DELTA)    
 
     ! IF ANY REDUCTION IN F, PUT X IN INTERPOLATION SET.
-    IF (F .LE. FOPT) THEN  
-       IF ( OUTPUT ) WRITE(*,1005) IT
-       DO I=1, N            
-          Y(IT,I) = X(I) 
+    IF (F .LE. FZ) THEN  
+       IF ( OUTPUT ) WRITE(*,1005) t
+       DO I=1, N
+          Y(t,I) = X(I) 
        END DO
     ELSE
        IT = PREVIT
@@ -371,7 +371,7 @@ contains
 
     CALL ATUALIZAQ(H, N, NPT, Q, DELTA, Y, X, F, IT) 
 
-23  IF (F  .LE.  FOPT + 0.1D0*VQUAD) THEN
+23  IF (F  .LE.  FZ + 0.1D0*VQUAD) THEN
 
        ! New criterium
 
@@ -397,13 +397,13 @@ contains
 
        if ( .not. forbidden ) then
 !!$          IF ((F-FOPT) .GE. (0.7D0*VQUAD)) THEN
-          IF ((F-FOPT) .GE. (0.7D0*VQUAD) .OR. &
+          IF ((F-FZ) .GE. (0.7D0*VQUAD) .OR. &
               DISTZ .LT. DELTA) THEN
              DELTA = DELTA  
           ELSE
              DELTA = DELTA + DELTA  
           END IF
-          FOPT = F
+          FZ = F
           DO I=1, N
              XNOVO(I) = X(I) 
           END DO
@@ -459,7 +459,7 @@ contains
     if ( OUTPUT .and. flag .eq.  3 ) write(*,1023) MAXIC
     if ( OUTPUT .and. flag .eq.  4 ) write(*,1024)
 
-    F = FOPT
+    F = FZ
 
     do i = 1,n
        x(i) = XNOVO(i)
