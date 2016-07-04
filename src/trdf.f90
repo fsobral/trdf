@@ -156,7 +156,9 @@ contains
     !
     ! X(N) - the final point
     !
-    ! F - objective function value at the final point
+    ! F - On entry, F contains the objective function value at the
+    !     starting point. On exit, is objective function value at the
+    !     final point
     !
     ! FEAS - sup-norm of the infeasibility at the final point
     !
@@ -179,8 +181,8 @@ contains
     intent(in   ) :: m,maxfcnt,n,npt,rbeg,rend,xeps,xl,xu,ccoded, &
                     equatn,linear,alpha,nf,ffilter,hfilter,epsfeas, &
                     outiter
-    intent(out  ) :: f,feas,fcnt,flag,rho
-    intent(inout) :: delta,x
+    intent(out  ) :: feas,fcnt,flag,rho
+    intent(inout) :: delta,f,x
 
     ! LOCAL ARRAYS
     REAL(8) :: D(INN),XNOVO(INN),SL(INN),SU(INN), VETOR1(NPT+N+1),Z(INN)
@@ -207,7 +209,8 @@ contains
     evalljac => evalljac_
     evalhc  => evalhc_
     evalc   => evalc_
-    
+
+    FZ      = F
     F       = 1.0D+300
     IC      = 0
     MAXIC   = maxfcnt ! MAXIMUM NUMBER OF FUNCTION EVALUATIONS
@@ -244,8 +247,8 @@ contains
 
        if ( KN .eq. 0 ) then 
 
-          CALL CALFUN(N,X,FZ,FLAG)
-          IF ( FLAG .NE. 0 ) GOTO 31
+!          CALL CALFUN(N,X,FZ,FLAG)
+!          IF ( FLAG .NE. 0 ) GOTO 31
 
           GOTO 11
 
