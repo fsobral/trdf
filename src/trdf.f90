@@ -96,7 +96,7 @@ contains
 
   SUBROUTINE TRDFSUB(N,NPT,X,XL,XU,M,EQUATN,LINEAR,CCODED,EVALF_,EVALLC_, &
        EVALLJAC_,EVALHC_,EVALC_,MAXFCNT,RBEG,REND,XEPS,OUTPUT,NF,  &
-       ALPHA,FFILTER,HFILTER,OUTITER,DELTA,EPSFEAS,F,FEAS,FCNT,RHO,FLAG)
+       ALPHA,FFILTER,HFILTER,FILTERTEST,OUTITER,DELTA,EPSFEAS,F,FEAS,FCNT,RHO,FLAG)
 
     ! This subroutine is the implementation of the Derivative-free
     ! Trust-region algorithm for constrained optimization described in
@@ -176,7 +176,8 @@ contains
     logical :: ccoded(2),equatn(m),linear(m)
 
     ! EXTERNAL SUBROUTINES
-    external :: evalf_,evallc_,evalljac_,evalhc_,evalc_
+    external         :: evalf_,evallc_,evalljac_,evalhc_,evalc_
+    logical,external :: filterTest
 
     intent(in   ) :: m,maxfcnt,n,npt,rbeg,rend,xeps,xl,xu,ccoded, &
                     equatn,linear,alpha,nf,ffilter,hfilter,epsfeas, &
@@ -402,14 +403,7 @@ contains
           END IF
        end do
 
-       forbidden = .false.
-       do i = 1,nf
-          if ( FEAS .ge. (1.0D0 - ALPHA) * hfilter(i) .and. &
-               F .ge. ffilter(i) - ALPHA * hfilter(i) ) then
-             forbidden = .true.
-             exit
-          end if
-       end do
+       forbidden = filterTest(F,FEAS,ALPHA,nf,ffilter,hfilter)
 
        if ( .not. forbidden ) then
 !!$          IF ((F-FOPT) .GE. (0.7D0*VQUAD)) THEN
