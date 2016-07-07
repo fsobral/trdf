@@ -231,29 +231,9 @@ contains
     if ( outiter .gt. 1 ) then
 
        ! Repurposing the interpolation points from the previous
-       ! iterations, but first verify if the set is 'well poised'
-       ! for the new point.
+       ! iterations.
 
-       KN=0
-       DO   K=1,NPT
-          SUM=0D0
-          DO   J=1,N
-             SUM=SUM+(Y(K,J)-Z(J))**2
-          END DO
-          IF ( SUM .GT. 10.0D0 * RHO ** 2.0D0 ) THEN
-             KN=K
-             exit
-          END IF
-       END DO
-
-       if ( KN .eq. 0 ) then 
-
-!          CALL CALFUN(N,X,FZ,FLAG)
-!          IF ( FLAG .NE. 0 ) GOTO 31
-
-          GOTO 11
-
-       end if
+       GOTO 11
 
     else
 
