@@ -262,7 +262,7 @@ contains
     ! Since we are rebuilding, z_k is the center of the model
     tbar_ = 1
 
-    CALL  PRIMEIROMODELO1 (N,X,Q,H, NPT,RHO,Y,FF,FLAG) 
+    CALL  PRIMEIROMODELO1 (N,X,FZ,Q,H,NPT,RHO,Y,FF,FLAG) 
 
     IF ( OUTPUT ) WRITE(*,1002) RHO,DELTA,FF(1),IC,MIN(N,MAXXEL), &
                   (X(I), I=1,MIN(N,MAXXEL))
@@ -529,13 +529,13 @@ contains
   ! ******************************************************************
 
   ! ********************************  FIRST MODEL  *******************************
-  SUBROUTINE  PRIMEIROMODELO1 (N,X,Q,H,NPT,DELTA,Y,FF,FLAG)
+  SUBROUTINE  PRIMEIROMODELO1 (N,X,FX,Q,H,NPT,DELTA,Y,FF,FLAG)
 
     implicit none
 
     ! SCALAR ARGUMENTS
     integer :: n,npt,flag
-    real(8) :: delta
+    real(8) :: delta,fx
 
     ! ARRAY ARGUMENTS
     real(8) :: Q(*), FF(*), x(n), H(NPT+N+1,NPT+N+1),YY(N)
@@ -585,7 +585,10 @@ contains
           Y(I+N+1,I)= X(I )-DELTA                 
        END DO
     END DO
-    DO I=1,  2*N+1 
+    ! It is possible to use the value of the objective function at the
+    ! center
+    FF(1) = FX
+    DO I=2,  2*N+1 
        DO J=1, N
           YY(J) = Y(I,J) 
        END DO
