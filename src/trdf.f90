@@ -668,7 +668,7 @@ contains
     END DO
 
     ! CALCULATING ALL SIGMA AND CHOOSE IT FOR THE GREATER SIGMA. MULTIPLY T-th LINE OF H FOR W FOR OBTAIN TAU. 
-    DO KKK = 1, NPT-1            
+    DO KKK = 1, NPT      
        CONT=0.0D0
        DO I=1, NPT+ N +1
           CONT = CONT +  H(IT, I) * WW(I,1)
