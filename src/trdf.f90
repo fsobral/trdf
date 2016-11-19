@@ -193,6 +193,8 @@ contains
     RHOEND = REND
     GAMA = 0.1D0
 
+    IT = 1
+
     !     ---------------------------
     !     Feasibility phase - Phase 0
     !     ---------------------------
@@ -221,6 +223,8 @@ contains
        X(I) = XNOVO(I)                     
        XBASE_A(I)=  XNOVO(I)                  
     END DO
+
+    IT = 1
 
 5   continue
 
