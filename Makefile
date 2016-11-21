@@ -67,6 +67,13 @@ noisy-hstests: all
 	$(FCC) -I$(SRC) tests/hs/noisy-hstests.f -lhs $(LOPTS) \
 	-o $(BIN)/$@ 
 
+cnoisy-hstests: all
+	$(MAKE) -C $(TES) hs
+
+	$(FC) -L$(SOLVERLIB) -L$(LIB) $(OBJ)/solver.o \
+	$(FCC) -I$(SRC) tests/hs/cnoisy-hstests.f -lhs $(LOPTS) \
+	-o $(BIN)/$@ 
+
 clean:
 	rm -vf $(LIB)/* $(BIN)/* $(OBJ)/*
 	$(foreach i,$(SRC) $(TES),$(MAKE) -C $(i) clean;)
