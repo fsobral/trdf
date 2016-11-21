@@ -59,6 +59,14 @@ hstests: all
 	$(FCC) -I$(SRC) tests/hs/hstests.f -lhs $(LOPTS) \
 	-o $(BIN)/$@ 
 
+# Noisy Hock-Schittkowski test set
+noisy-hstests: all
+	$(MAKE) -C $(TES) hs
+
+	$(FC) -L$(SOLVERLIB) -L$(LIB) $(OBJ)/solver.o \
+	$(FCC) -I$(SRC) tests/hs/noisy-hstests.f -lhs $(LOPTS) \
+	-o $(BIN)/$@ 
+
 clean:
 	rm -vf $(LIB)/* $(BIN)/* $(OBJ)/*
 	$(foreach i,$(SRC) $(TES),$(MAKE) -C $(i) clean;)
