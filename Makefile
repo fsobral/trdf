@@ -32,9 +32,11 @@ export
 
 all: lib solver
 	mkdir -p $(BIN)
+	mkdir -p $(OBJ)
 
 # Generate the main TRDF library
 lib:
+	mkdir -p $(LIB)
 	$(MAKE) -C $(SRC) all install
 
 # Generate the solver interface object
